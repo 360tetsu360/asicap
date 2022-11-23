@@ -24,11 +24,12 @@ unsafe fn asi_setup() {
 
     let mut cam_info = asi_camera2::ASI_CAMERA_INFO::default();
 
-    println!("attached cameras:");
+    println!("attached cameras: {{");
     for i in 0..connected_cameras {
         ASIGetCameraProperty(&mut cam_info, i);
-        println!("{} {}", i, cam_info.name().unwrap());
+        println!("{} : {},", i, cam_info.name().unwrap());
     }
+    println!("}}");
 
     print!("select one camera: ");
     let mut s = String::new();
