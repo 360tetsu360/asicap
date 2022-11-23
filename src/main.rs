@@ -30,14 +30,11 @@ unsafe fn asi_setup() {
         println!("{} {}", i, cam_info.name().unwrap());
     }
 
-    println!("select one to preview: ");
+    print!("select one camera: ");
     let mut s = String::new();
     let _ = stdout().flush();
     stdin().read_line(&mut s).unwrap();
     if let Some('\n') = s.chars().next_back() {
-        s.pop();
-    }
-    if let Some('\r') = s.chars().next_back() {
         s.pop();
     }
 
@@ -55,7 +52,7 @@ unsafe fn asi_setup() {
     }
 
     ASIGetCameraPropertyByID(cam_id, &mut cam_info);
-    println!("{} information :", cam_info.name().unwrap());
+    println!("{} information", cam_info.name().unwrap());
     println!("resolution: {}x{}", cam_info.MaxWidth, cam_info.MaxHeight);
 
     if cam_info.IsColorCam == ASI_BOOL_ASI_TRUE {
