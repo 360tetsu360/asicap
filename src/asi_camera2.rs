@@ -491,7 +491,7 @@ fn bindgen_test_layout__ASI_SUPPORTED_MODE() {
 
 pub type ASI_SUPPORTED_MODE = _ASI_SUPPORTED_MODE;
 
-#[link(name = "libMinHook", kind = "static")]
+#[link(name = "ASICamera2", kind = "static")]
 extern "C" {
     #[doc = "Descriptions:"]
     #[doc = "this should be the first API to be called"]
