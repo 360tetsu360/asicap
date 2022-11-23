@@ -2,6 +2,10 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
+use core::ffi::FromBytesUntilNulError;
+use std::error::Error;
+use std::ffi::CStr;
+
 pub const ASICAMERA_ID_MAX: u32 = 128;
 pub const ASI_BAYER_PATTERN_ASI_BAYER_RG: ASI_BAYER_PATTERN = 0;
 pub const ASI_BAYER_PATTERN_ASI_BAYER_BG: ASI_BAYER_PATTERN = 1;
@@ -37,6 +41,7 @@ pub const ASI_TRIG_OUTPUT_ASI_TRIG_OUTPUT_PINA: ASI_TRIG_OUTPUT = 0;
 pub const ASI_TRIG_OUTPUT_ASI_TRIG_OUTPUT_PINB: ASI_TRIG_OUTPUT = 1;
 pub const ASI_TRIG_OUTPUT_ASI_TRIG_OUTPUT_NONE: ASI_TRIG_OUTPUT = -1;
 pub type ASI_TRIG_OUTPUT = ::std::os::raw::c_int;
+
 pub use self::ASI_TRIG_OUTPUT as ASI_TRIG_OUTPUT_PIN;
 pub const ASI_ERROR_CODE_ASI_SUCCESS: ASI_ERROR_CODE = 0;
 pub const ASI_ERROR_CODE_ASI_ERROR_INVALID_INDEX: ASI_ERROR_CODE = 1;
@@ -57,13 +62,14 @@ pub const ASI_ERROR_CODE_ASI_ERROR_EXPOSURE_IN_PROGRESS: ASI_ERROR_CODE = 15;
 pub const ASI_ERROR_CODE_ASI_ERROR_GENERAL_ERROR: ASI_ERROR_CODE = 16;
 pub const ASI_ERROR_CODE_ASI_ERROR_INVALID_MODE: ASI_ERROR_CODE = 17;
 pub const ASI_ERROR_CODE_ASI_ERROR_END: ASI_ERROR_CODE = 18;
-pub type ASI_ERROR_CODE = ::std::os::raw::c_uint;
+pub type ASI_ERROR_CODE = ::std::os::raw::c_int;
 pub const ASI_BOOL_ASI_FALSE: ASI_BOOL = 0;
 pub const ASI_BOOL_ASI_TRUE: ASI_BOOL = 1;
-pub type ASI_BOOL = ::std::os::raw::c_uint;
+pub type ASI_BOOL = ::std::os::raw::c_int;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct _ASI_CAMERA_INFO {
+pub struct ASI_CAMERA_INFO {
     pub Name: [::std::os::raw::c_char; 64usize],
     pub CameraID: ::std::os::raw::c_int,
     pub MaxHeight: ::std::os::raw::c_long,
@@ -83,26 +89,63 @@ pub struct _ASI_CAMERA_INFO {
     pub IsTriggerCam: ASI_BOOL,
     pub Unused: [::std::os::raw::c_char; 16usize],
 }
+
+impl Default for ASI_CAMERA_INFO {
+    fn default() -> Self {
+        Self {
+            Name: [0u8; 64],
+            CameraID: Default::default(),
+            MaxHeight: Default::default(),
+            MaxWidth: Default::default(),
+            IsColorCam: Default::default(),
+            BayerPattern: Default::default(),
+            SupportedBins: Default::default(),
+            SupportedVideoFormat: Default::default(),
+            PixelSize: Default::default(),
+            MechanicalShutter: Default::default(),
+            ST4Port: Default::default(),
+            IsCoolerCam: Default::default(),
+            IsUSB3Host: Default::default(),
+            IsUSB3Camera: Default::default(),
+            ElecPerADU: Default::default(),
+            BitDepth: Default::default(),
+            IsTriggerCam: Default::default(),
+            Unused: Default::default(),
+        }
+    }
+}
+
+impl ASI_CAMERA_INFO {
+    pub fn name(&self) -> Result<&str, Box<dyn Error>> {
+        let c_str = CStr::from_bytes_until_nul(&self.Name)?;
+        Ok(c_str.to_str()?)
+    }
+}
+
+pub enum CstrError {
+    FromBytesUntilNul(FromBytesUntilNulError),
+}
+
 #[test]
 fn bindgen_test_layout__ASI_CAMERA_INFO() {
-    const UNINIT: ::std::mem::MaybeUninit<_ASI_CAMERA_INFO> = ::std::mem::MaybeUninit::uninit();
+    const UNINIT: ::std::mem::MaybeUninit<ASI_CAMERA_INFO> = ::std::mem::MaybeUninit::uninit();
     let ptr = UNINIT.as_ptr();
     assert_eq!(
-        ::std::mem::size_of::<_ASI_CAMERA_INFO>(),
+        ::std::mem::size_of::<ASI_CAMERA_INFO>(),
         240usize,
-        concat!("Size of: ", stringify!(_ASI_CAMERA_INFO))
+        concat!("Size of: ", stringify!(ASI_CAMERA_INFO))
     );
     assert_eq!(
-        ::std::mem::align_of::<_ASI_CAMERA_INFO>(),
+        ::std::mem::align_of::<ASI_CAMERA_INFO>(),
         8usize,
-        concat!("Alignment of ", stringify!(_ASI_CAMERA_INFO))
+        concat!("Alignment of ", stringify!(ASI_CAMERA_INFO))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).Name) as usize - ptr as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(Name)
         )
@@ -112,7 +155,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         64usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(CameraID)
         )
@@ -122,7 +165,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         68usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(MaxHeight)
         )
@@ -132,7 +175,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         72usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(MaxWidth)
         )
@@ -142,7 +185,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         76usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(IsColorCam)
         )
@@ -152,7 +195,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         80usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(BayerPattern)
         )
@@ -162,7 +205,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         84usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(SupportedBins)
         )
@@ -172,7 +215,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         148usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(SupportedVideoFormat)
         )
@@ -182,7 +225,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         184usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(PixelSize)
         )
@@ -192,7 +235,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         192usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(MechanicalShutter)
         )
@@ -202,7 +245,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         196usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(ST4Port)
         )
@@ -212,7 +255,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         200usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(IsCoolerCam)
         )
@@ -222,7 +265,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         204usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(IsUSB3Host)
         )
@@ -232,7 +275,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         208usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(IsUSB3Camera)
         )
@@ -242,7 +285,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         212usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(ElecPerADU)
         )
@@ -252,7 +295,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         216usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(BitDepth)
         )
@@ -262,7 +305,7 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         220usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(IsTriggerCam)
         )
@@ -272,13 +315,12 @@ fn bindgen_test_layout__ASI_CAMERA_INFO() {
         224usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CAMERA_INFO),
+            stringify!(ASI_CAMERA_INFO),
             "::",
             stringify!(Unused)
         )
     );
 }
-pub type ASI_CAMERA_INFO = _ASI_CAMERA_INFO;
 pub const ASI_CONTROL_TYPE_ASI_GAIN: ASI_CONTROL_TYPE = 0;
 pub const ASI_CONTROL_TYPE_ASI_EXPOSURE: ASI_CONTROL_TYPE = 1;
 pub const ASI_CONTROL_TYPE_ASI_GAMMA: ASI_CONTROL_TYPE = 2;
@@ -301,10 +343,11 @@ pub const ASI_CONTROL_TYPE_ASI_MONO_BIN: ASI_CONTROL_TYPE = 18;
 pub const ASI_CONTROL_TYPE_ASI_FAN_ON: ASI_CONTROL_TYPE = 19;
 pub const ASI_CONTROL_TYPE_ASI_PATTERN_ADJUST: ASI_CONTROL_TYPE = 20;
 pub const ASI_CONTROL_TYPE_ASI_ANTI_DEW_HEATER: ASI_CONTROL_TYPE = 21;
-pub type ASI_CONTROL_TYPE = ::std::os::raw::c_uint;
+pub type ASI_CONTROL_TYPE = ::std::os::raw::c_int;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct _ASI_CONTROL_CAPS {
+pub struct ASI_CONTROL_CAPS {
     pub Name: [::std::os::raw::c_char; 64usize],
     pub Description: [::std::os::raw::c_char; 128usize],
     pub MaxValue: ::std::os::raw::c_long,
@@ -315,26 +358,50 @@ pub struct _ASI_CONTROL_CAPS {
     pub ControlType: ASI_CONTROL_TYPE,
     pub Unused: [::std::os::raw::c_char; 32usize],
 }
+
+impl Default for ASI_CONTROL_CAPS {
+    fn default() -> Self {
+        Self {
+            Name: [0u8; 64],
+            Description: [0u8; 128],
+            MaxValue: Default::default(),
+            MinValue: Default::default(),
+            DefaultValue: Default::default(),
+            IsAutoSupported: Default::default(),
+            IsWritable: Default::default(),
+            ControlType: Default::default(),
+            Unused: Default::default(),
+        }
+    }
+}
+
+impl ASI_CONTROL_CAPS {
+    pub fn name(&self) -> Result<&str, Box<dyn Error>> {
+        let c_str = CStr::from_bytes_until_nul(&self.Name)?;
+        Ok(c_str.to_str()?)
+    }
+}
+
 #[test]
-fn bindgen_test_layout__ASI_CONTROL_CAPS() {
-    const UNINIT: ::std::mem::MaybeUninit<_ASI_CONTROL_CAPS> = ::std::mem::MaybeUninit::uninit();
+fn bindgen_test_layout_ASI_CONTROL_CAPS() {
+    const UNINIT: ::std::mem::MaybeUninit<ASI_CONTROL_CAPS> = ::std::mem::MaybeUninit::uninit();
     let ptr = UNINIT.as_ptr();
     assert_eq!(
-        ::std::mem::size_of::<_ASI_CONTROL_CAPS>(),
+        ::std::mem::size_of::<ASI_CONTROL_CAPS>(),
         248usize,
-        concat!("Size of: ", stringify!(_ASI_CONTROL_CAPS))
+        concat!("Size of: ", stringify!(ASI_CONTROL_CAPS))
     );
     assert_eq!(
-        ::std::mem::align_of::<_ASI_CONTROL_CAPS>(),
+        ::std::mem::align_of::<ASI_CONTROL_CAPS>(),
         4usize,
-        concat!("Alignment of ", stringify!(_ASI_CONTROL_CAPS))
+        concat!("Alignment of ", stringify!(ASI_CONTROL_CAPS))
     );
     assert_eq!(
         unsafe { ::std::ptr::addr_of!((*ptr).Name) as usize - ptr as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(Name)
         )
@@ -344,7 +411,7 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         64usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(Description)
         )
@@ -354,7 +421,7 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         192usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(MaxValue)
         )
@@ -364,7 +431,7 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         196usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(MinValue)
         )
@@ -374,7 +441,7 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         200usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(DefaultValue)
         )
@@ -384,7 +451,7 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         204usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(IsAutoSupported)
         )
@@ -394,7 +461,7 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         208usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(IsWritable)
         )
@@ -404,7 +471,7 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         212usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(ControlType)
         )
@@ -414,13 +481,12 @@ fn bindgen_test_layout__ASI_CONTROL_CAPS() {
         216usize,
         concat!(
             "Offset of field: ",
-            stringify!(_ASI_CONTROL_CAPS),
+            stringify!(ASI_CONTROL_CAPS),
             "::",
             stringify!(Unused)
         )
     );
 }
-pub type ASI_CONTROL_CAPS = _ASI_CONTROL_CAPS;
 pub const ASI_EXPOSURE_STATUS_ASI_EXP_IDLE: ASI_EXPOSURE_STATUS = 0;
 pub const ASI_EXPOSURE_STATUS_ASI_EXP_WORKING: ASI_EXPOSURE_STATUS = 1;
 pub const ASI_EXPOSURE_STATUS_ASI_EXP_SUCCESS: ASI_EXPOSURE_STATUS = 2;
