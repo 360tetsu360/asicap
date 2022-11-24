@@ -119,13 +119,13 @@ impl ASICameraMode {
 
 #[repr(i32)]
 #[derive(Debug, Clone, Copy)]
-pub enum TrigOutput {
+pub enum ASITrigOutput {
     PinA = ASI_TRIG_OUTPUT_ASI_TRIG_OUTPUT_PINA,
     PinB = ASI_TRIG_OUTPUT_ASI_TRIG_OUTPUT_PINB,
     None = ASI_TRIG_OUTPUT_ASI_TRIG_OUTPUT_NONE,
 }
 
-impl TrigOutput {
+impl ASITrigOutput {
     pub fn from_raw(trig_output: ASI_TRIG_OUTPUT) -> Self {
         match trig_output {
             ASI_TRIG_OUTPUT_ASI_TRIG_OUTPUT_PINA => Self::PinA,
@@ -492,14 +492,14 @@ impl Default for ASIControlCaps {
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy)]
-pub enum ExposureStatus {
+pub enum ASIExposureStatus {
     Idle = ASI_EXPOSURE_STATUS_ASI_EXP_IDLE,
     Working = ASI_EXPOSURE_STATUS_ASI_EXP_WORKING,
     Success = ASI_EXPOSURE_STATUS_ASI_EXP_SUCCESS,
     Failed = ASI_EXPOSURE_STATUS_ASI_EXP_FAILED,
 }
 
-impl ExposureStatus {
+impl ASIExposureStatus {
     pub fn from_raw(exposure_status: ASI_EXPOSURE_STATUS) -> Self {
         match exposure_status {
             ASI_EXPOSURE_STATUS_ASI_EXP_IDLE => Self::Idle,
@@ -631,4 +631,289 @@ pub fn get_control_value(id: i32, control_type: ASIControlType) -> Result<(i32, 
         )?
     };
     Ok((pl_value, ASIBool::from_raw(pb_auto as u32).to_bool()))
+}
+
+/// Set the ROI area before capture.
+/// You must stop capture before call it.
+/// The width and height is the value after binning.
+/// ie. you need to set width to 640 and height to 480 if you want to run at 640X480@BIN2
+/// Specially, ASI120's data size must be times of 1024 which means width*height%1024=0.
+pub fn set_roi_format(
+    id: i32,
+    i_width: i32,
+    i_height: i32,
+    i_bin: i32,
+    image_type: ASIImageType,
+) -> Result<(), ASIError> {
+    unsafe {
+        ASIError::from_raw(ASISetROIFormat(id, i_width, i_height, i_bin, image_type as i32) as u32)
+    }
+}
+
+/// Get the current ROI area setting .
+pub fn get_roi_format(id: i32) -> Result<(i32, i32, i32, ASIImageType), ASIError> {
+    let mut i_width = 0;
+    let mut i_height = 0;
+    let mut i_bin = 0;
+    let mut img_type_raw = 0;
+    unsafe {
+        ASIError::from_raw(ASIGetROIFormat(
+            id,
+            &mut i_width,
+            &mut i_height,
+            &mut i_bin,
+            &mut img_type_raw,
+        ) as u32)?
+    };
+    Ok((
+        i_width,
+        i_height,
+        i_bin,
+        ASIImageType::from_raw(img_type_raw),
+    ))
+}
+
+/// Set the start position of the ROI area.
+/// you can call this API to move the ROI area when video is streaming.
+/// the camera will set the ROI area to the center of the full image as default.
+/// at bin2 or bin3 mode, the position is relative to the image after binning.
+pub fn set_start_pos(id: i32, i_start_x: i32, i_start_y: i32) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASISetStartPos(id, i_start_x, i_start_y) as u32) }
+}
+
+/// Get the start position of current ROI area.
+pub fn get_start_pos(id: i32) -> Result<(i32, i32), ASIError> {
+    let mut start_x = 0;
+    let mut start_y = 0;
+    unsafe { ASIError::from_raw(ASIGetStartPos(id, &mut start_x, &mut start_y) as u32)? };
+    Ok((start_x, start_y))
+}
+
+/// Get the droped frames .
+pub fn get_dropped_frames(id: i32) -> Result<i32, ASIError> {
+    let mut count = 0;
+    unsafe { ASIError::from_raw(ASIGetDroppedFrames(id, &mut count) as u32)? };
+    Ok(count)
+}
+
+/// provide a dark file's path to the function and enable dark subtract
+/// this is used when there is hot pixel or need to do long exposure
+/// you'd better make this dark file from the  \"dark subtract\" funtion
+/// of the \"video capture filter\" directshow page.
+/// the dark file's size should be the same of camera's max width and height
+/// and should be RGB8 raw format.it will on even you changed the ROI setting
+/// it only correct the hot pixels if out put isn't 16bit.
+/// it will be remembered in registry. so \"Dark subtract\" is on next time if you close your app.
+pub fn enable_dark_subtract(id: i32, path: &str) -> Result<(), ASIError> {
+    let mut path_buf = vec![0u8; path.len() + 1];
+    path_buf.copy_from_slice(path.as_bytes());
+    unsafe { ASIError::from_raw(ASIEnableDarkSubtract(id, path_buf.as_mut_ptr()) as u32) }
+}
+
+/// Disable the dark subtract function.
+/// you'd better call it at start if you don't want to use it.
+/// because dark subtract function is remembered on windows platform
+pub fn disable_dark_subtract(id: i32) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASIDisableDarkSubtract(id) as u32) }
+}
+
+/// Start video capture
+/// then you can get the data from the API ASIGetVideoData
+pub fn start_video_capture(id: i32) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASIStartVideoCapture(id) as u32) }
+}
+
+/// Stop video capture
+pub fn stop_video_capture(id: i32) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASIStopVideoCapture(id) as u32) }
+}
+
+/// get data from the video buffer.the buffer is very small
+/// you need to call this API as fast as possible, otherwise frame will be discarded
+/// so the best way is maintain one buffer loop and call this API in a loop
+/// please make sure the buffer size is biger enough to hold one image
+/// otherwise the this API will crash
+pub fn get_video_data(id: i32, buffer: &mut Vec<u8>, waitms: i32) -> Result<(), ASIError> {
+    unsafe {
+        ASIError::from_raw(
+            ASIGetVideoData(id, buffer.as_mut_ptr(), buffer.len() as i32, waitms) as u32,
+        )
+    }
+}
+
+/// PulseGuide of the ST4 port on. this function only work on the module which have ST4 port
+pub fn pulse_guide_on(id: i32, direction: ASIGuideDirection) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASIPulseGuideOn(id, direction as i32) as u32) }
+}
+
+/// PulseGuide of the ST4 port off. this function only work on the module which have ST4 port
+/// make sure where is ASIPulseGuideOn and there is ASIPulseGuideOff
+pub fn pulse_guide_off(id: i32, direction: ASIGuideDirection) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASIPulseGuideOff(id, direction as i32) as u32) }
+}
+
+/// Start camera exposure. the following 4 API is usually used when long exposure required
+/// start exposure  and check the exposure status then get the data
+pub fn start_exposure(id: i32, is_dark: bool) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASIStartExposure(id, ASIBool::from_bool(is_dark) as i32) as u32) }
+}
+
+/// to cancel the long exposure which is on.
+pub fn stop_exposure(id: i32) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASIStopExposure(id) as u32) }
+}
+
+/// to get the exposure status, work with ASIStartExposure.
+/// you can read the data if get ASI_EXP_SUCCESS. or have to restart exposure again
+/// if get ASI_EXP_FAILED
+pub fn get_exp_status(id: i32) -> Result<ASIExposureStatus, ASIError> {
+    let mut stat_raw = 0;
+    unsafe { ASIError::from_raw(ASIGetExpStatus(id, &mut stat_raw) as u32)? };
+    Ok(ASIExposureStatus::from_raw(stat_raw))
+}
+
+/// get data after exposure.
+/// please make sure the buffer size is biger enough to hold one image
+/// otherwise the this API will crash
+pub fn get_data_after_exp(id: i32, buffer: &mut Vec<u8>) -> Result<(), ASIError> {
+    unsafe {
+        ASIError::from_raw(ASIGetDataAfterExp(id, buffer.as_mut_ptr(), buffer.len() as i32) as u32)
+    }
+}
+
+/// get camera id stored in flash, only available for USB3.0 camera
+pub fn get_id(id: i32) -> Result<ASIID, ASIError> {
+    let mut raw_id = ASI_ID { id: [0u8; 8] };
+    unsafe { ASIError::from_raw(ASIGetID(id, &mut raw_id) as u32)? };
+    Ok(ASIID::from_raw(raw_id))
+}
+
+/// write camera id to flash, only available for USB3.0 camera
+pub fn set_id(id: i32, new_id: ASIID) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASISetID(id, new_id.to_raw()) as u32) }
+}
+
+/// get pre-setting parameter
+pub fn get_gain_offset(id: i32) -> Result<(i32, i32, i32, i32), ASIError> {
+    let mut highest_dr = 0;
+    let mut unity_gain = 0;
+    let mut gain_lowest_rn = 0;
+    let mut offset_lowest_rn = 0;
+    unsafe {
+        ASIError::from_raw(ASIGetGainOffset(
+            id,
+            &mut highest_dr,
+            &mut unity_gain,
+            &mut gain_lowest_rn,
+            &mut offset_lowest_rn,
+        ) as u32)?
+    };
+    Ok((highest_dr, unity_gain, gain_lowest_rn, offset_lowest_rn))
+}
+
+/// get the frequently-used gain and offset
+pub fn get_lmh_gain_offset(id: i32) -> Result<(i32, i32, i32, i32), ASIError> {
+    let mut l_gain = 0;
+    let mut m_gain = 0;
+    let mut h_gain = 0;
+    let mut h_offset = 0;
+    unsafe {
+        ASIError::from_raw(ASIGetLMHGainOffset(
+            id,
+            &mut l_gain,
+            &mut m_gain,
+            &mut h_gain,
+            &mut h_offset,
+        ) as u32)?
+    }
+    Ok((l_gain, m_gain, h_gain, h_offset))
+}
+
+/// get version string, like \"1, 13, 0503\"
+pub fn get_sdk_version() -> Result<String, Box<dyn Error>> {
+    unsafe {
+        let raw_char = ASIGetSDKVersion();
+        Ok(CStr::from_ptr(raw_char).to_str()?.to_owned())
+    }
+}
+
+/// Get the camera supported mode, only need to call when the IsTriggerCam in the CameraInfo is true.
+pub fn get_camera_support_mode(id: i32) -> Result<ASISupportedMode, ASIError> {
+    let mut raw_supported_mode = ASI_SUPPORTED_MODE {
+        SupportedCameraMode: [0; 16usize],
+    };
+    unsafe { ASIError::from_raw(ASIGetCameraSupportMode(id, &mut raw_supported_mode) as u32)? };
+    Ok(ASISupportedMode::from_raw(raw_supported_mode))
+}
+
+/// Get the camera current mode, only need to call when the IsTriggerCam in the CameraInfo is true
+pub fn get_camera_mode(id: i32) -> Result<ASICameraMode, ASIError> {
+    let mut raw_mode = 0;
+    unsafe { ASIError::from_raw(ASIGetCameraMode(id, &mut raw_mode) as u32)? };
+    Ok(ASICameraMode::from_raw(raw_mode))
+}
+
+/// Set the camera mode, only need to call when the IsTriggerCam in the CameraInfo is true
+pub fn set_camera_mode(id: i32, mode: ASICameraMode) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASISetCameraMode(id, mode as i32) as u32) }
+}
+
+/// Send out a softTrigger. For edge trigger, it only need to set true which means send a
+/// rising trigger to start exposure. For level trigger, it need to set true first means
+/// start exposure, and set false means stop exposure.it only need to call when the
+/// IsTriggerCam in the CameraInfo is true
+pub fn send_soft_trigger(id: i32, start: bool) -> Result<(), ASIError> {
+    unsafe { ASIError::from_raw(ASISendSoftTrigger(id, ASIBool::from_bool(start) as i32) as u32) }
+}
+
+/// Get a serial number from a camera.
+/// It is 8 ASCII characters, you need to print it in hexadecimal.
+pub fn get_serial_number(id: i32) -> Result<ASIID, ASIError> {
+    let mut asiid_raw = ASI_ID { id: [0u8; 8] };
+    unsafe { ASIError::from_raw(ASIGetSerialNumber(id, &mut asiid_raw) as u32)? };
+    Ok(ASIID::from_raw(asiid_raw))
+}
+
+/// Config the output pin (A or B) of Trigger port. If lDuration <= 0, this output pin will be closed.
+/// Only need to call when the IsTriggerCam in the CameraInfo is true
+pub fn set_trigger_output_io_conf(
+    id: i32,
+    pin: ASITrigOutput,
+    pin_high: bool,
+    delay: i32,
+    duration: i32,
+) -> Result<(), ASIError> {
+    unsafe {
+        ASIError::from_raw(ASISetTriggerOutputIOConf(
+            id,
+            pin as i32,
+            ASIBool::from_bool(pin_high) as i32,
+            delay,
+            duration,
+        ) as u32)
+    }
+}
+
+/// Get the output pin configuration, only need to call when the IsTriggerCam in the CameraInfo is true
+pub fn get_trigger_output_io_conf(
+    id: i32,
+    pin: ASITrigOutput,
+) -> Result<(bool, i32, i32), ASIError> {
+    let mut pin_high_raw = 0;
+    let mut delay = 0;
+    let mut duration = 0;
+    unsafe {
+        ASIError::from_raw(ASIGetTriggerOutputIOConf(
+            id,
+            pin as i32,
+            &mut pin_high_raw,
+            &mut delay,
+            &mut duration,
+        ) as u32)?
+    };
+    Ok((
+        ASIBool::from_raw(pin_high_raw as u32).to_bool(),
+        delay,
+        duration,
+    ))
 }
