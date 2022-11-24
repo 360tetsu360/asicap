@@ -1,11 +1,9 @@
 #![feature(cstr_from_bytes_until_nul)]
 use std::io::{stdin, stdout, Write};
 
-use asi_camera2::ASIGetCameraProperty;
+use crate::asi::asi_api::*;
 
-use crate::asi_camera2::*;
-
-mod asi_camera2;
+mod asi;
 
 const BAYER_TYPES: [&str; 4] = ["RG", "BG", "GR", "GB"];
 
@@ -14,7 +12,7 @@ fn main() {
 }
 
 unsafe fn asi_setup() {
-    let connected_cameras = asi_camera2::ASIGetNumOfConnectedCameras();
+    let connected_cameras = get_num_of_connected_cameras();
     if connected_cameras == 0 {
         println!("no camera connected!");
         return;
@@ -22,12 +20,10 @@ unsafe fn asi_setup() {
         println!("found {} cameras", connected_cameras);
     }
 
-    let mut cam_info = asi_camera2::ASI_CAMERA_INFO::default();
-
     println!("attached cameras: {{");
     for i in 0..connected_cameras {
-        ASIGetCameraProperty(&mut cam_info, i);
-        println!("{} : {},", i, cam_info.name().unwrap());
+        let cam_info = get_camera_property(i).unwrap();
+        println!("{} : {},", i, cam_info.name);
     }
     println!("}}");
 
@@ -39,51 +35,41 @@ unsafe fn asi_setup() {
         s.pop();
     }
 
-    let cam_id: i32 = s.parse().unwrap_or_else(|_| panic!("{} is not a number.", s));
-    if cam_id > connected_cameras {
-        panic!("no camera id is {}", cam_id);
+    let cam_index: i32 = s
+        .parse()
+        .unwrap_or_else(|_| panic!("{} is not a number.", s));
+    if cam_index > connected_cameras {
+        panic!("no camera index is {}", cam_index);
     }
 
-    if ASIOpenCamera(cam_id) != ASI_ERROR_CODE_ASI_SUCCESS {
-        panic!("Error occured during opening camera {}", cam_id);
-    }
+    let cam_info = get_camera_property(cam_index).unwrap();
+    let cam_id = cam_info.camera_id;
 
-    if ASIInitCamera(cam_id) != ASI_ERROR_CODE_ASI_SUCCESS {
-        panic!("Error occured during initializing camera {}", cam_id);
-    }
+    open_camera(cam_id).unwrap();
+    init_camera(cam_id).unwrap();
 
-    ASIGetCameraPropertyByID(cam_id, &mut cam_info);
-    println!("{} information", cam_info.name().unwrap());
-    println!("resolution: {}x{}", cam_info.MaxWidth, cam_info.MaxHeight);
+    println!("{} information", cam_info.name);
+    println!("resolution: {}x{}", cam_info.max_width, cam_info.max_height);
 
-    if cam_info.IsColorCam == ASI_BOOL_ASI_TRUE {
+    if cam_info.is_color_cam {
         println!(
             "camera type: Color (bayer pattern {})",
-            BAYER_TYPES[cam_info.BayerPattern as usize]
+            BAYER_TYPES[cam_info.bayer_pattern as usize]
         )
     } else {
         println!("camera type: Mono")
     }
 
     println!("camera controls: [");
-    let mut ctrl_caps = ASI_CONTROL_CAPS::default();
-    let mut num_of_ctrls = 0;
-    ASIGetNumOfControls(cam_id, &mut num_of_ctrls);
+    let num_of_ctrls = get_num_of_controls(cam_id).unwrap();
     for i in 0..num_of_ctrls {
-        ASIGetControlCaps(cam_id, i, &mut ctrl_caps);
-        println!("    {},", ctrl_caps.name().unwrap());
+        let ctrl_caps = get_control_caps(cam_id, i).unwrap();
+        println!("    {},", ctrl_caps.name);
     }
     println!("]");
 
-    let mut ltemp = 0;
-    let mut b_auto = ASI_BOOL_ASI_FALSE;
-    ASIGetControlValue(
-        cam_id,
-        ASI_CONTROL_TYPE_ASI_TEMPERATURE,
-        &mut ltemp,
-        &mut b_auto,
-    );
+    let (ltemp, _) = get_control_value(cam_id, ASIControlType::Temperature).unwrap();
     println!("camera temperature: {}", ltemp as f64 / 10.0);
 
-    ASICloseCamera(cam_id);
+    close_camera(cam_id).unwrap();
 }
