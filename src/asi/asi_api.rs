@@ -315,14 +315,14 @@ impl ASICameraInfo {
 
     pub fn to_raw(&self) -> ASI_CAMERA_INFO {
         let mut name = [0u8; 64];
-        name.copy_from_slice(self.name.as_bytes());
+        name[..self.name.len()].copy_from_slice(self.name.as_bytes());
         let mut supported_video_format = [0; 8];
         let slice_raw: Vec<ASI_IMG_TYPE> = self
             .supported_video_format
             .iter()
             .map(|x| *x as i32)
             .collect();
-        supported_video_format.copy_from_slice(&slice_raw);
+        supported_video_format[..slice_raw.len()].copy_from_slice(&slice_raw);
 
         ASI_CAMERA_INFO {
             Name: name,
@@ -458,9 +458,9 @@ impl ASIControlCaps {
 
     pub fn to_raw(&self) -> ASI_CONTROL_CAPS {
         let mut name = [0u8; 64];
-        name.copy_from_slice(self.name.as_bytes());
+        name[..self.name.len()].copy_from_slice(self.name.as_bytes());
         let mut description = [0u8; 128];
-        description.copy_from_slice(self.description.as_bytes());
+        description[..self.description.len()].copy_from_slice(self.description.as_bytes());
         ASI_CONTROL_CAPS {
             Name: name,
             Description: description,
@@ -555,7 +555,7 @@ impl ASISupportedMode {
             .iter()
             .map(|x| *x as i32)
             .collect();
-        supported_camera_mode.copy_from_slice(&slice_raw);
+        supported_camera_mode[..self.supported_camera_mode.len()].copy_from_slice(&slice_raw);
         ASI_SUPPORTED_MODE {
             SupportedCameraMode: supported_camera_mode,
         }
@@ -706,7 +706,7 @@ pub fn get_dropped_frames(id: i32) -> Result<i32, ASIError> {
 /// it will be remembered in registry. so \"Dark subtract\" is on next time if you close your app.
 pub fn enable_dark_subtract(id: i32, path: &str) -> Result<(), ASIError> {
     let mut path_buf = vec![0u8; path.len() + 1];
-    path_buf.copy_from_slice(path.as_bytes());
+    path_buf[..path.len()].copy_from_slice(path.as_bytes());
     unsafe { ASIError::from_raw(ASIEnableDarkSubtract(id, path_buf.as_mut_ptr()) as u32) }
 }
 
