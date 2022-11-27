@@ -1,75 +1,97 @@
 #![feature(cstr_from_bytes_until_nul)]
-use std::io::{stdin, stdout, Write};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+};
 
-use crate::asi::asi_api::*;
+use async_std::{
+    io::{Cursor, WriteExt},
+    net::{TcpListener, TcpStream, UdpSocket},
+    sync::Mutex,
+    task,
+};
+use camera::CameraManager;
+use futures::{select, FutureExt};
 
 mod asi;
+mod camera;
+mod packet;
 
-const BAYER_TYPES: [&str; 4] = ["RG", "BG", "GR", "GB"];
+const MAGIC: &[u8] = b"A51C4P";
 
 fn main() {
-    unsafe { asi_setup() };
+    task::block_on(app()).unwrap();
 }
 
-unsafe fn asi_setup() {
-    let connected_cameras = get_num_of_connected_cameras();
-    if connected_cameras == 0 {
-        println!("no camera connected!");
-        return;
-    } else {
-        println!("found {} cameras", connected_cameras);
+async fn app() -> std::io::Result<()> {
+    let camera_manager = Arc::new(Mutex::new(CameraManager::new().unwrap()));
+    dbg!(&camera_manager);
+
+    let udp_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), 4510);
+    let tcp_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 4514);
+
+    let udp_socket = UdpSocket::bind(udp_address).await?;
+    let tcp_listener = TcpListener::bind(tcp_address).await?;
+
+    loop {
+        let cam_manager_udp = camera_manager.clone();
+        let udp_future = async {
+            let mut buffer = [0u8; 2048];
+            let (size, src) = udp_socket.recv_from(&mut buffer).await?;
+            handle_incoming(
+                &udp_socket,
+                &buffer[..size],
+                src,
+                cam_manager_udp,
+                tcp_address,
+            )
+            .await?;
+            Ok::<(), std::io::Error>(())
+        };
+
+        let tcp_future = async {
+            let (stream, address) = tcp_listener.accept().await?;
+            handle_new_connection(stream, address).await?;
+            Ok::<(), std::io::Error>(())
+        };
+
+        select! {
+            udp_res = udp_future.fuse() => udp_res,
+            tcp_res = tcp_future.fuse() => tcp_res
+        }?;
+    }
+}
+
+async fn handle_incoming(
+    udp_socket: &UdpSocket,
+    buffer: &[u8],
+    src: SocketAddr,
+    cam_manager: Arc<Mutex<CameraManager>>,
+    tcp_address: SocketAddr,
+) -> std::io::Result<()> {
+    if buffer.len() != 6 {
+        return Ok(());
     }
 
-    println!("attached cameras: {{");
-    for i in 0..connected_cameras {
-        let cam_info = get_camera_property(i).unwrap();
-        println!("{} : {},", i, cam_info.name);
-    }
-    println!("}}");
-
-    print!("select one camera: ");
-    let mut s = String::new();
-    let _ = stdout().flush();
-    stdin().read_line(&mut s).unwrap();
-    if let Some('\n') = s.chars().next_back() {
-        s.pop();
+    if buffer[..6].ne(MAGIC) {
+        return Ok(());
     }
 
-    let cam_index: i32 = s
-        .parse()
-        .unwrap_or_else(|_| panic!("{} is not a number.", s));
-    if cam_index > connected_cameras {
-        panic!("no camera index is {}", cam_index);
-    }
+    let mut cursor = Cursor::new(Vec::<u8>::new());
+    cursor.write_all(MAGIC).await?;
 
-    let cam_info = get_camera_property(cam_index).unwrap();
-    let cam_id = cam_info.camera_id;
+    cursor
+        .write_all(&(tcp_address.port()).to_be_bytes())
+        .await?;
+    cursor
+        .write_all(&(cam_manager.lock().await.connected_cams() as u8).to_be_bytes())
+        .await?;
 
-    open_camera(cam_id).unwrap();
-    init_camera(cam_id).unwrap();
+    udp_socket.send_to(&cursor.into_inner(), src).await?;
 
-    println!("{} information", cam_info.name);
-    println!("resolution: {}x{}", cam_info.max_width, cam_info.max_height);
+    Ok(())
+}
 
-    if cam_info.is_color_cam {
-        println!(
-            "camera type: Color (bayer pattern {})",
-            BAYER_TYPES[cam_info.bayer_pattern as usize]
-        )
-    } else {
-        println!("camera type: Mono")
-    }
-
-    println!("camera controls: [");
-    let num_of_ctrls = get_num_of_controls(cam_id).unwrap();
-    for i in 0..num_of_ctrls {
-        let ctrl_caps = get_control_caps(cam_id, i).unwrap();
-        println!("    {},", ctrl_caps.name);
-    }
-    println!("]");
-
-    let (ltemp, _) = get_control_value(cam_id, ASIControlType::Temperature).unwrap();
-    println!("camera temperature: {}", ltemp as f64 / 10.0);
-
-    close_camera(cam_id).unwrap();
+async fn handle_new_connection(_stream: TcpStream, _address: SocketAddr) -> std::io::Result<()> {
+    Ok(())
 }
