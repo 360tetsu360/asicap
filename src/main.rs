@@ -5,7 +5,7 @@ use std::{
 };
 
 use async_std::{
-    io::{Cursor, WriteExt},
+    io::{Cursor, ReadExt, WriteExt},
     net::{TcpListener, TcpStream, UdpSocket},
     sync::Mutex,
     task,
@@ -51,7 +51,7 @@ async fn app() -> std::io::Result<()> {
 
         let tcp_future = async {
             let (stream, address) = tcp_listener.accept().await?;
-            handle_new_connection(stream, address).await?;
+            task::spawn(async move { handle_new_connection(stream, address).await.unwrap() });
             Ok::<(), std::io::Error>(())
         };
 
@@ -92,6 +92,15 @@ async fn handle_incoming(
     Ok(())
 }
 
-async fn handle_new_connection(_stream: TcpStream, _address: SocketAddr) -> std::io::Result<()> {
+async fn handle_new_connection(stream: TcpStream, _address: SocketAddr) -> std::io::Result<()> {
+    let mut reader = stream.clone();
+    let mut _writer = stream;
+
+    let mut id_buf = [0u8; 1];
+    reader.read_exact(&mut id_buf).await?;
+    match id_buf[0] {
+        _ => {}
+    }
+
     Ok(())
 }
