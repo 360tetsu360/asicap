@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{collections::HashMap, error::Error};
 
 use crate::asi::asi_api::*;
@@ -8,11 +10,16 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(camera_index: i32) -> Result<Self, Box<dyn Error>> {
+    pub fn new(camera_index: i32) -> Result<(Self, i32), Box<dyn Error>> {
         let info = get_camera_property(camera_index)?;
-        open_camera(info.camera_id)?;
-        init_camera(info.camera_id)?;
-        Ok(Self { info })
+        let id = info.camera_id;
+        open_camera(id)?;
+        init_camera(id)?;
+        Ok((Self { info }, id))
+    }
+
+    pub fn get_control_caps(&self) -> Result<Vec<ASIControlCaps>, Box<dyn Error>> {
+        todo!();
     }
 }
 
@@ -33,7 +40,8 @@ impl CameraManager {
 
         let mut cam_hash = HashMap::new();
         for cam_index in 0..connected_cams {
-            cam_hash.insert(cam_index, Camera::new(cam_index)?);
+            let (camera, id) = Camera::new(cam_index)?;
+            cam_hash.insert(id, camera);
         }
 
         Ok(Self { cams: cam_hash })
@@ -41,5 +49,9 @@ impl CameraManager {
 
     pub fn connected_cams(&self) -> usize {
         self.cams.len()
+    }
+
+    pub fn get_control_caps(&self, id: i32) -> Result<Vec<ASIControlCaps>, Box<dyn Error>> {
+        self.cams.get(&id).unwrap().get_control_caps()
     }
 }

@@ -98,9 +98,6 @@ async fn handle_new_connection(stream: TcpStream, _address: SocketAddr) -> std::
 
     let mut id_buf = [0u8; 1];
     reader.read_exact(&mut id_buf).await?;
-    match id_buf[0] {
-        _ => {}
-    }
 
     Ok(())
 }
