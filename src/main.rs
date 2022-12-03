@@ -13,6 +13,8 @@ use async_std::{
 use camera::CameraManager;
 use futures::{select, FutureExt};
 
+use crate::packet::Request;
+
 mod asi;
 mod camera;
 mod packet;
@@ -92,12 +94,30 @@ async fn handle_incoming(
     Ok(())
 }
 
-async fn handle_new_connection(stream: TcpStream, _address: SocketAddr) -> std::io::Result<()> {
-    let mut reader = stream.clone();
-    let mut _writer = stream;
+#[allow(unused_variables, unreachable_code)]
+async fn handle_new_connection(mut stream: TcpStream, _address: SocketAddr) -> std::io::Result<()> {
+    dbg!();
 
-    let mut id_buf = [0u8; 1];
-    reader.read_exact(&mut id_buf).await?;
+    loop {
+        let mut id = [0u8; 1];
+        stream.read_exact(&mut id).await.unwrap();
+
+        if id[0] != 0xA5 {
+            continue;
+        }
+
+        let mut seq = [0u8; 4];
+        stream.read_exact(&mut seq).await.unwrap();
+        let seq_num = u32::from_be_bytes(seq);
+
+        let request = Request::decode(&mut stream).await.unwrap();
+        todo!("Handle request here");
+
+        stream.write(&[0xA5]).await.unwrap();
+        let seq_bytes = seq_num.to_be_bytes();
+        stream.write(&seq_bytes).await.unwrap();
+        todo!("Write response here");
+    }
 
     Ok(())
 }
