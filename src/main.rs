@@ -13,11 +13,12 @@ use async_std::{
 use camera::CameraManager;
 use futures::{select, FutureExt};
 
-use crate::packet::Request;
+use crate::packet::Requests;
 
 mod asi;
 mod camera;
 mod packet;
+mod protocol;
 
 const MAGIC: &[u8] = b"A51C4P";
 
@@ -110,7 +111,7 @@ async fn handle_new_connection(mut stream: TcpStream, _address: SocketAddr) -> s
         stream.read_exact(&mut seq).await.unwrap();
         let seq_num = u32::from_be_bytes(seq);
 
-        let request = Request::decode(&mut stream).await.unwrap();
+        let request = Requests::decode(&mut stream).await.unwrap();
         todo!("Handle request here");
 
         stream.write(&[0xA5]).await.unwrap();
