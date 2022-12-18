@@ -268,7 +268,7 @@ pub struct ASICameraInfo {
     pub max_width: i32,
     pub is_color_cam: bool,
     pub bayer_pattern: ASIBayerPattern,
-    pub supported_bins: [i32; 16],
+    pub supported_bins: Vec<i32>,
     pub supported_video_format: Vec<ASIImageType>,
     pub pixel_size: f64,
     pub mechanical_shutter: bool,
@@ -290,7 +290,7 @@ impl ASICameraInfo {
             max_width: raw.MaxWidth,
             is_color_cam: ASIBool::from_raw(raw.IsColorCam).to_bool(),
             bayer_pattern: ASIBayerPattern::from_raw(raw.BayerPattern),
-            supported_bins: raw.SupportedBins,
+            supported_bins: Vec::with_capacity(16),
             supported_video_format: Vec::with_capacity(8),
             pixel_size: raw.PixelSize,
             mechanical_shutter: ASIBool::from_raw(raw.MechanicalShutter).to_bool(),
@@ -302,6 +302,13 @@ impl ASICameraInfo {
             bit_depth: raw.BitDepth,
             is_trigger_cam: ASIBool::from_raw(raw.IsTriggerCam).to_bool(),
         };
+
+        for bin in raw.SupportedBins {
+            if bin == 0 {
+                break;
+            }
+            ret.supported_bins.push(bin);
+        }
 
         for video_format in raw.SupportedVideoFormat {
             if video_format == ASIImageType::End as i32 {
@@ -316,6 +323,10 @@ impl ASICameraInfo {
     pub fn to_raw(&self) -> ASI_CAMERA_INFO {
         let mut name = [0u8; 64];
         name[..self.name.len()].copy_from_slice(self.name.as_bytes());
+
+        let mut supported_bins = [0; 16];
+        supported_bins.copy_from_slice(&self.supported_bins);
+
         let mut supported_video_format = [0; 8];
         let slice_raw: Vec<ASI_IMG_TYPE> = self
             .supported_video_format
@@ -331,7 +342,7 @@ impl ASICameraInfo {
             MaxWidth: self.max_width,
             IsColorCam: ASIBool::from_bool(self.is_color_cam) as ASI_BOOL,
             BayerPattern: self.bayer_pattern as ASI_BAYER_PATTERN,
-            SupportedBins: self.supported_bins,
+            SupportedBins: supported_bins,
             SupportedVideoFormat: supported_video_format,
             PixelSize: self.pixel_size,
             MechanicalShutter: ASIBool::from_bool(self.mechanical_shutter) as ASI_BOOL,
@@ -356,7 +367,7 @@ impl Default for ASICameraInfo {
             max_width: Default::default(),
             is_color_cam: Default::default(),
             bayer_pattern: ASIBayerPattern::RG,
-            supported_bins: [0i32; 16],
+            supported_bins: Vec::with_capacity(16),
             supported_video_format: Vec::with_capacity(8),
             pixel_size: Default::default(),
             mechanical_shutter: Default::default(),
