@@ -3,15 +3,15 @@
 use async_std::net::TcpStream;
 
 use crate::{
-    bytes::AsyncReadExtend,
+    bytes::{AsyncReadExtend, AsyncWriteExtend},
     protocol::camera::{Camera, ControlType},
 };
 
 #[derive(Debug)]
 pub enum Requests {
-    GetConnectedCameras,
-    GetControlValue(GetControlValuePacket),
-    SetControlValue(SetControlValuePacket),
+    GetConnectedCameras,                        // 0x0
+    GetControlValue(GetControlValuePacket),     // 0x1
+    SetControlValue(SetControlValuePacket),     // 0x2
 }
 
 impl Requests {
@@ -26,20 +26,38 @@ impl Requests {
 
 #[derive(Debug)]
 pub enum Responses {
-    ConnectedCameras(ConnectedCamerasPacket),
-    ControlValue(ControlValuePacket),
-    ASIError(ASIErrorCode),
-    None,
+    ConnectedCameras(ConnectedCamerasPacket),   // 0x0
+    ControlValue(ControlValuePacket),           // 0x1
+    ASIError(ASIErrorCode),                     // 0x2
+    None,                                       // 0x3
 }
 
 impl Responses {
-    pub async fn encode(&self, _tcp: &mut TcpStream) -> std::io::Result<()> {
-        todo!()
+    pub async fn encode(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
+        match self {
+            Responses::ConnectedCameras(packet) => {
+                packet.write(tcp).await
+            },
+            Responses::ControlValue(_) => todo!(),
+            Responses::ASIError(_) => todo!(),
+            Responses::None => todo!(),
+        }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct ConnectedCamerasPacket(Vec<Camera>);
+pub struct ConnectedCamerasPacket(pub Vec<Camera>);
+
+impl ConnectedCamerasPacket {
+    pub async fn write(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
+        tcp.write_u8(0x0).await?;
+        tcp.write_u16(self.0.len() as u16).await?;
+        for camera in &self.0 {
+            camera.write(tcp).await?;
+        }
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct GetControlValuePacket {

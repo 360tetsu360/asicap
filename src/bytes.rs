@@ -1,4 +1,7 @@
-use async_std::{io::ReadExt, net::TcpStream};
+use async_std::{
+    io::{ReadExt, WriteExt},
+    net::TcpStream,
+};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -47,5 +50,53 @@ impl AsyncReadExtend for TcpStream {
         let mut b = [0u8; 8];
         self.read_exact(&mut b).await?;
         Ok(f64::from_be_bytes(b))
+    }
+}
+
+#[async_trait]
+pub trait AsyncWriteExtend {
+    async fn write_bool(&mut self, v: bool) -> std::io::Result<()>;
+    async fn write_u8(&mut self, v: u8) -> std::io::Result<()>;
+    async fn write_u16(&mut self, v: u16) -> std::io::Result<()>;
+    async fn write_i32(&mut self, v: i32) -> std::io::Result<()>;
+    async fn write_u32(&mut self, v: u32) -> std::io::Result<()>;
+    async fn write_f32(&mut self, v: f32) -> std::io::Result<()>;
+    async fn write_f64(&mut self, v: f64) -> std::io::Result<()>;
+    async fn write_str(&mut self, v: &str) -> std::io::Result<()>;
+}
+
+#[async_trait]
+impl AsyncWriteExtend for TcpStream {
+    async fn write_bool(&mut self, v: bool) -> std::io::Result<()> {
+        self.write_all(&[v as u8]).await
+    }
+
+    async fn write_u8(&mut self, v: u8) -> std::io::Result<()> {
+        self.write_all(&[v]).await
+    }
+
+    async fn write_u16(&mut self, v: u16) -> std::io::Result<()> {
+        self.write_all(&v.to_be_bytes()).await
+    }
+
+    async fn write_i32(&mut self, v: i32) -> std::io::Result<()> {
+        self.write_all(&v.to_be_bytes()).await
+    }
+
+    async fn write_u32(&mut self, v: u32) -> std::io::Result<()> {
+        self.write_all(&v.to_be_bytes()).await
+    }
+
+    async fn write_f32(&mut self, v: f32) -> std::io::Result<()> {
+        self.write_all(&v.to_be_bytes()).await
+    }
+
+    async fn write_f64(&mut self, v: f64) -> std::io::Result<()> {
+        self.write_all(&v.to_be_bytes()).await
+    }
+
+    async fn write_str(&mut self, v: &str) -> std::io::Result<()> {
+        self.write_u16(v.len() as u16).await?;
+        self.write_all(v.as_bytes()).await
     }
 }
