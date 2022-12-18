@@ -2,7 +2,10 @@
 
 use async_std::net::TcpStream;
 
-use crate::bytes::AsyncWriteExtend;
+use crate::{
+    asi::asi_api::{ASIBayerPattern, ASICameraInfo, ASIControlCaps, ASIControlType, ASIImageType},
+    bytes::AsyncWriteExtend,
+};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
@@ -73,6 +76,34 @@ impl CameraInfo {
     }
 }
 
+impl From<ASICameraInfo> for CameraInfo {
+    fn from(value: ASICameraInfo) -> Self {
+        Self {
+            name: value.name,
+            camera_id: value.camera_id as u32,
+            max_height: value.max_height as u32,
+            max_width: value.max_width as u32,
+            is_color_cam: value.is_color_cam,
+            bayer_pattern: value.bayer_pattern.into(),
+            supported_bins: value.supported_bins.iter().map(|x| *x as u32).collect(),
+            supported_video_format: value
+                .supported_video_format
+                .iter()
+                .map(|x| (*x).into())
+                .collect(),
+            pixel_size: value.pixel_size,
+            mechanical_shutter: value.mechanical_shutter,
+            st4_port: value.st4_port,
+            is_cooler_cam: value.is_cooler_cam,
+            is_usb3_host: value.is_usb3_host,
+            is_usb3_camera: value.is_usb3_camera,
+            elec_per_adu: value.elec_per_adu,
+            bit_depth: value.bit_depth as u32,
+            is_trigger_cam: value.is_trigger_cam,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum BayerPattern {
     RG,
@@ -92,6 +123,17 @@ impl BayerPattern {
     }
 }
 
+impl From<ASIBayerPattern> for BayerPattern {
+    fn from(value: ASIBayerPattern) -> Self {
+        match value {
+            ASIBayerPattern::RG => Self::RG,
+            ASIBayerPattern::BG => Self::BG,
+            ASIBayerPattern::GR => Self::GR,
+            ASIBayerPattern::GB => Self::GB,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ImageType {
     Raw8,
@@ -107,6 +149,18 @@ impl ImageType {
             ImageType::Rgb24 => tcp.write_u8(1).await,
             ImageType::Raw16 => tcp.write_u8(2).await,
             ImageType::Y8 => tcp.write_u8(3).await,
+        }
+    }
+}
+
+impl From<ASIImageType> for ImageType {
+    fn from(value: ASIImageType) -> Self {
+        match value {
+            ASIImageType::Raw8 => Self::Raw8,
+            ASIImageType::Rgb24 => Self::Rgb24,
+            ASIImageType::Raw16 => Self::Raw16,
+            ASIImageType::Y8 => Self::Y8,
+            ASIImageType::End => panic!(),
         }
     }
 }
@@ -166,6 +220,35 @@ impl ControlType {
     }
 }
 
+impl From<ASIControlType> for ControlType {
+    fn from(value: ASIControlType) -> Self {
+        match value {
+            ASIControlType::Gain => Self::Gain,
+            ASIControlType::Exposure => Self::Exposure,
+            ASIControlType::Gamma => Self::Gamma,
+            ASIControlType::WbR => Self::WbR,
+            ASIControlType::WbB => Self::WbB,
+            ASIControlType::Offset => Self::Offset,
+            ASIControlType::BandwidthOverload => Self::BandwidthOverload,
+            ASIControlType::OverClock => Self::OverClock,
+            ASIControlType::Temperature => Self::Temperature,
+            ASIControlType::Flip => Self::Flip,
+            ASIControlType::AutoMaxGain => Self::AutoMaxGain,
+            ASIControlType::AutoMaxExp => Self::AutoMaxExp,
+            ASIControlType::AutoTargetBrightness => Self::AutoTargetBrightness,
+            ASIControlType::HardwareBin => Self::HardwareBin,
+            ASIControlType::HighSpeedMode => Self::HighSpeedMode,
+            ASIControlType::CoolerPowerPerc => Self::CoolerPowerPerc,
+            ASIControlType::TargetTemp => Self::TargetTemp,
+            ASIControlType::CoolerOn => Self::CoolerOn,
+            ASIControlType::MonoBin => Self::MonoBin,
+            ASIControlType::FanOn => Self::FanOn,
+            ASIControlType::PatternAdjust => Self::PatternAdjust,
+            ASIControlType::AntiDewHeater => Self::AntiDewHeater,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ControlCaps {
     pub name: String,
@@ -188,5 +271,20 @@ impl ControlCaps {
         tcp.write_bool(self.is_auto_supported).await?;
         tcp.write_bool(self.is_writable).await?;
         self.control_type.write(tcp).await
+    }
+}
+
+impl From<ASIControlCaps> for ControlCaps {
+    fn from(value: ASIControlCaps) -> Self {
+        Self {
+            name: value.name,
+            description: value.description,
+            max_value: value.max_value as u32,
+            min_value: value.min_value as u32,
+            default_value: value.default_value as u32,
+            is_auto_supported: value.is_auto_supported,
+            is_writable: value.is_writable,
+            control_type: value.control_type.into(),
+        }
     }
 }
