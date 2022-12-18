@@ -9,9 +9,9 @@ use crate::{
 
 #[derive(Debug)]
 pub enum Requests {
-    GetConnectedCameras,                        // 0x0
-    GetControlValue(GetControlValuePacket),     // 0x1
-    SetControlValue(SetControlValuePacket),     // 0x2
+    GetConnectedCameras,                    // 0x0
+    GetControlValue(GetControlValuePacket), // 0x1
+    SetControlValue(SetControlValuePacket), // 0x2
 }
 
 impl Requests {
@@ -26,18 +26,16 @@ impl Requests {
 
 #[derive(Debug)]
 pub enum Responses {
-    ConnectedCameras(ConnectedCamerasPacket),   // 0x0
-    ControlValue(ControlValuePacket),           // 0x1
-    ASIError(ASIErrorCode),                     // 0x2
-    None,                                       // 0x3
+    ConnectedCameras(ConnectedCamerasPacket), // 0x0
+    ControlValue(ControlValuePacket),         // 0x1
+    ASIError(ASIErrorCode),                   // 0x2
+    None,                                     // 0x3
 }
 
 impl Responses {
     pub async fn encode(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
         match self {
-            Responses::ConnectedCameras(packet) => {
-                packet.write(tcp).await
-            },
+            Responses::ConnectedCameras(packet) => packet.write(tcp).await,
             Responses::ControlValue(_) => todo!(),
             Responses::ASIError(_) => todo!(),
             Responses::None => todo!(),

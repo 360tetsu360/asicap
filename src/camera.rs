@@ -2,6 +2,8 @@
 
 use std::{collections::HashMap, error::Error};
 
+use async_std::task::block_on;
+
 use crate::asi::asi_api::*;
 
 #[derive(Debug, Clone)]
@@ -10,11 +12,11 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(camera_index: i32) -> Result<(Self, i32), Box<dyn Error>> {
-        let info = get_camera_property(camera_index)?;
+    pub async fn new(camera_index: i32) -> Result<(Self, i32), Box<dyn Error>> {
+        let info = get_camera_property(camera_index).await?;
         let id = info.camera_id;
-        open_camera(id)?;
-        init_camera(id)?;
+        open_camera(id).await?;
+        init_camera(id).await?;
         Ok((Self { info }, id))
     }
 
@@ -25,7 +27,7 @@ impl Camera {
 
 impl Drop for Camera {
     fn drop(&mut self) {
-        close_camera(self.info.camera_id).unwrap();
+        block_on(close_camera(self.info.camera_id)).unwrap();
     }
 }
 
@@ -35,12 +37,12 @@ pub struct CameraManager {
 }
 
 impl CameraManager {
-    pub fn new() -> Result<Self, Box<dyn Error>> {
-        let connected_cams = get_num_of_connected_cameras();
+    pub async fn new() -> Result<Self, Box<dyn Error>> {
+        let connected_cams = get_num_of_connected_cameras().await;
 
         let mut cam_hash = HashMap::new();
         for cam_index in 0..connected_cams {
-            let (camera, id) = Camera::new(cam_index)?;
+            let (camera, id) = Camera::new(cam_index).await?;
             cam_hash.insert(id, camera);
         }
 

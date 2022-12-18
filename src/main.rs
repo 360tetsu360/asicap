@@ -28,7 +28,7 @@ fn main() {
 }
 
 async fn app() -> std::io::Result<()> {
-    let camera_manager = Arc::new(Mutex::new(CameraManager::new().unwrap()));
+    let camera_manager = Arc::new(Mutex::new(CameraManager::new().await.unwrap()));
     dbg!(&camera_manager);
 
     let udp_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), 4510);
@@ -98,7 +98,10 @@ async fn handle_incoming(
 }
 
 #[allow(unused_variables, unreachable_code)]
-async fn handle_new_connection(mut stream: TcpStream, cam_manager: Arc<Mutex<CameraManager>>) -> std::io::Result<()> {
+async fn handle_new_connection(
+    mut stream: TcpStream,
+    cam_manager: Arc<Mutex<CameraManager>>,
+) -> std::io::Result<()> {
     dbg!();
 
     loop {
@@ -119,7 +122,7 @@ async fn handle_new_connection(mut stream: TcpStream, cam_manager: Arc<Mutex<Cam
         match request {
             Requests::GetConnectedCameras => {
                 cam_manager.lock().await.connected_cams();
-            },
+            }
             Requests::GetControlValue(_) => todo!(),
             Requests::SetControlValue(_) => todo!(),
         }
