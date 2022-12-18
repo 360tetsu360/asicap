@@ -13,9 +13,10 @@ use async_std::{
 use camera::CameraManager;
 use futures::{select, FutureExt};
 
-use crate::packet::Requests;
+use crate::packet::{Requests, Responses};
 
 mod asi;
+mod bytes;
 mod camera;
 mod packet;
 mod protocol;
@@ -112,12 +113,19 @@ async fn handle_new_connection(mut stream: TcpStream, _address: SocketAddr) -> s
         let seq_num = u32::from_be_bytes(seq);
 
         let request = Requests::decode(&mut stream).await.unwrap();
+
+        let response = Responses::None;
+        match request {
+            Requests::GetConnectedCameras => {}
+            Requests::GetControlValue(_) => todo!(),
+            Requests::SetControlValue(_) => todo!(),
+        }
         todo!("Handle request here");
 
         stream.write(&[0xA5]).await.unwrap();
         let seq_bytes = seq_num.to_be_bytes();
         stream.write(&seq_bytes).await.unwrap();
-        todo!("Write response here");
+        response.encode(&mut stream).await.unwrap();
     }
 
     Ok(())

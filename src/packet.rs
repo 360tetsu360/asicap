@@ -2,7 +2,10 @@
 
 use async_std::net::TcpStream;
 
-use crate::protocol::camera::{Camera, ControlType};
+use crate::{
+    bytes::AsyncReadExtend,
+    protocol::camera::{Camera, ControlType},
+};
 
 #[derive(Debug)]
 pub enum Requests {
@@ -12,8 +15,12 @@ pub enum Requests {
 }
 
 impl Requests {
-    pub async fn decode(_tcp: &mut TcpStream) -> std::io::Result<Self> {
-        todo!()
+    pub async fn decode(tcp: &mut TcpStream) -> std::io::Result<Self> {
+        let id = tcp.read_u8().await?;
+        match id {
+            0x0 => Ok(Self::GetConnectedCameras),
+            _ => todo!(),
+        }
     }
 }
 
