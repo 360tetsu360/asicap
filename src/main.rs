@@ -54,8 +54,9 @@ async fn app() -> std::io::Result<()> {
         };
 
         let tcp_future = async {
-            let (stream, address) = tcp_listener.accept().await?;
-            task::spawn(async move { handle_new_connection(stream, address).await.unwrap() });
+            let (stream, _address) = tcp_listener.accept().await?;
+            let cam_manager = camera_manager.clone();
+            task::spawn(async move { handle_new_connection(stream, cam_manager).await.unwrap() });
             Ok::<(), std::io::Error>(())
         };
 
@@ -97,7 +98,7 @@ async fn handle_incoming(
 }
 
 #[allow(unused_variables, unreachable_code)]
-async fn handle_new_connection(mut stream: TcpStream, _address: SocketAddr) -> std::io::Result<()> {
+async fn handle_new_connection(mut stream: TcpStream, cam_manager: Arc<Mutex<CameraManager>>) -> std::io::Result<()> {
     dbg!();
 
     loop {
@@ -116,7 +117,9 @@ async fn handle_new_connection(mut stream: TcpStream, _address: SocketAddr) -> s
 
         let response = Responses::None;
         match request {
-            Requests::GetConnectedCameras => {}
+            Requests::GetConnectedCameras => {
+                cam_manager.lock().await.connected_cams();
+            },
             Requests::GetControlValue(_) => todo!(),
             Requests::SetControlValue(_) => todo!(),
         }
