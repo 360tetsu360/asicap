@@ -14,7 +14,7 @@ use async_std::{
 use futures::{select, FutureExt};
 
 use crate::{
-    camera::CameraManager,
+    camera::{Camera, CameraInfo, CameraManager, BayerPattern, ImageType},
     packet::{ConnectedCamerasPacket, Requests, Responses},
 };
 
@@ -123,11 +123,33 @@ async fn handle_new_connection(
         let mut response = Responses::None;
         match request {
             Requests::GetConnectedCameras => {
-                let cams = cam_manager.lock().await.connected_cams().await.unwrap();
+                let cams = vec![Camera {
+                    id: 0,
+                    info: CameraInfo {
+                        name: "ASI178MM".to_string(),
+                        camera_id: 0,
+                        max_height: 100,
+                        max_width: 100,
+                        is_color_cam: false,
+                        bayer_pattern: BayerPattern::BG,
+                        supported_bins: vec![1,2,3,4],
+                        supported_video_format: vec![ImageType::Raw8, ImageType::Raw16],
+                        pixel_size: 0.2,
+                        mechanical_shutter: false,
+                        st4_port: true,
+                        is_cooler_cam: false,
+                        is_usb3_host: true,
+                        is_usb3_camera: true,
+                        elec_per_adu: 0.21,
+                        bit_depth: 10,
+                        is_trigger_cam: false,
+                    },
+                    controls: vec![],
+                }];
                 response = Responses::ConnectedCameras(ConnectedCamerasPacket(cams));
             }
-            Requests::GetControlValue(_) => {},
-            Requests::SetControlValue(_) => {},
+            Requests::GetControlValue(_) => {}
+            Requests::SetControlValue(_) => {}
         }
 
         stream.write(&[0xA5]).await.unwrap();

@@ -347,7 +347,7 @@ impl CameraManager {
                 self.cams.remove(&id);
             }
         }
-        
+
         Ok(())
     }
 
