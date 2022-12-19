@@ -10,16 +10,18 @@ use async_std::{
     sync::Mutex,
     task,
 };
-use camera::CameraManager;
+
 use futures::{select, FutureExt};
 
-use crate::packet::{Requests, Responses};
+use crate::{
+    camera::CameraManager,
+    packet::{ConnectedCamerasPacket, Requests, Responses},
+};
 
 mod asi;
 mod bytes;
 mod camera;
 mod packet;
-mod protocol;
 
 const MAGIC: &[u8] = b"A51C4P";
 
@@ -89,7 +91,7 @@ async fn handle_incoming(
         .write_all(&(tcp_address.port()).to_be_bytes())
         .await?;
     cursor
-        .write_all(&(cam_manager.lock().await.connected_cams() as u8).to_be_bytes())
+        .write_all(&(cam_manager.lock().await.connected_cams_count().await as u8).to_be_bytes())
         .await?;
 
     udp_socket.send_to(&cursor.into_inner(), src).await?;
@@ -118,15 +120,15 @@ async fn handle_new_connection(
 
         let request = Requests::decode(&mut stream).await.unwrap();
 
-        let response = Responses::None;
+        let mut response = Responses::None;
         match request {
             Requests::GetConnectedCameras => {
-                cam_manager.lock().await.connected_cams();
+                let cams = cam_manager.lock().await.connected_cams().await.unwrap();
+                response = Responses::ConnectedCameras(ConnectedCamerasPacket(cams));
             }
-            Requests::GetControlValue(_) => todo!(),
-            Requests::SetControlValue(_) => todo!(),
+            Requests::GetControlValue(_) => {},
+            Requests::SetControlValue(_) => {},
         }
-        todo!("Handle request here");
 
         stream.write(&[0xA5]).await.unwrap();
         let seq_bytes = seq_num.to_be_bytes();

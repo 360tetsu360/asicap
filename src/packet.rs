@@ -4,7 +4,7 @@ use async_std::net::TcpStream;
 
 use crate::{
     bytes::{AsyncReadExtend, AsyncWriteExtend},
-    protocol::camera::{Camera, ControlType},
+    camera::{Camera, ControlType},
 };
 
 #[derive(Debug)]

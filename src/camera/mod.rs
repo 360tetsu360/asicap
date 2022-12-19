@@ -1,11 +1,10 @@
 #![allow(dead_code)]
 
+use std::{collections::HashMap, error::Error};
+
 use async_std::net::TcpStream;
 
-use crate::{
-    asi::asi_api::{ASIBayerPattern, ASICameraInfo, ASIControlCaps, ASIControlType, ASIImageType},
-    bytes::AsyncWriteExtend,
-};
+use crate::{asi::asi_api::*, bytes::AsyncWriteExtend};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
@@ -15,6 +14,23 @@ pub struct Camera {
 }
 
 impl Camera {
+    async fn new(id: u32) -> Result<Self, Box<dyn Error>> {
+        open_camera(id as i32).await?;
+        init_camera(id as i32).await?;
+
+        let info = get_camera_property_by_id(id as i32).await?.into();
+        let mut controls = vec![];
+        for i in 0..get_num_of_controls(id as i32).await? {
+            controls.push(get_control_caps(id as i32, i).await?.into())
+        }
+
+        Ok(Self { id, info, controls })
+    }
+
+    async fn close(&mut self) -> Result<(), ASIError> {
+        close_camera(self.id as i32).await
+    }
+
     pub async fn write(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
         tcp.write_u32(self.id).await?;
         self.info.write(tcp).await?;
@@ -286,5 +302,61 @@ impl From<ASIControlCaps> for ControlCaps {
             is_writable: value.is_writable,
             control_type: value.control_type.into(),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CameraManager {
+    cams: HashMap<u32, Camera>,
+}
+
+impl CameraManager {
+    pub async fn new() -> Result<Self, Box<dyn Error>> {
+        let connected_cams = get_num_of_connected_cameras().await;
+
+        let mut cam_hash = HashMap::new();
+        for cam_index in 0..connected_cams {
+            let cam_info = get_camera_property(cam_index).await?;
+            let camera = Camera::new(cam_info.camera_id as u32).await?;
+            cam_hash.insert(cam_info.camera_id as u32, camera);
+        }
+
+        Ok(Self { cams: cam_hash })
+    }
+
+    pub async fn update(&mut self) -> Result<(), Box<dyn Error>> {
+        let connected_cams = get_num_of_connected_cameras().await;
+
+        let last_cam_ids = self.cams.keys().copied().collect::<Vec<_>>();
+
+        let mut ids = vec![];
+        for cam_index in 0..connected_cams {
+            let cam_info = get_camera_property(cam_index).await?;
+            if last_cam_ids
+                .iter()
+                .any(|id| *id == cam_info.camera_id as u32)
+            {
+                let camera = Camera::new(cam_info.camera_id as u32).await?;
+                self.cams.insert(cam_info.camera_id as u32, camera);
+            }
+            ids.push(cam_info.camera_id as u32);
+        }
+
+        for id in last_cam_ids {
+            if !ids.iter().any(|cam_id| *cam_id == id) {
+                self.cams.remove(&id);
+            }
+        }
+        
+        Ok(())
+    }
+
+    pub async fn connected_cams_count(&self) -> usize {
+        get_num_of_connected_cameras().await as usize
+    }
+
+    pub async fn connected_cams(&mut self) -> Result<Vec<Camera>, Box<dyn Error>> {
+        self.update().await?;
+        Ok(self.cams.iter().map(|x| x.1.clone()).collect())
     }
 }
