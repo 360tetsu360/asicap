@@ -14,7 +14,7 @@ use async_std::{
 use futures::{select, FutureExt};
 
 use crate::{
-    camera::{Camera, CameraInfo, CameraManager, BayerPattern, ImageType},
+    camera::{BayerPattern, Camera, CameraInfo, CameraManager, ControlCaps, ImageType},
     packet::{ConnectedCamerasPacket, Requests, Responses},
 };
 
@@ -123,33 +123,75 @@ async fn handle_new_connection(
         let mut response = Responses::None;
         match request {
             Requests::GetConnectedCameras => {
-                let cams = vec![Camera {
-                    id: 0,
-                    info: CameraInfo {
-                        name: "ASI178MM".to_string(),
-                        camera_id: 0,
-                        max_height: 100,
-                        max_width: 100,
-                        is_color_cam: false,
-                        bayer_pattern: BayerPattern::BG,
-                        supported_bins: vec![1,2,3,4],
-                        supported_video_format: vec![ImageType::Raw8, ImageType::Raw16],
-                        pixel_size: 0.2,
-                        mechanical_shutter: false,
-                        st4_port: true,
-                        is_cooler_cam: false,
-                        is_usb3_host: true,
-                        is_usb3_camera: true,
-                        elec_per_adu: 0.21,
-                        bit_depth: 10,
-                        is_trigger_cam: false,
+                let cams = vec![
+                    Camera {
+                        id: 0,
+                        info: CameraInfo {
+                            name: "ASI178MM".to_string(),
+                            camera_id: 0,
+                            max_height: 100,
+                            max_width: 100,
+                            is_color_cam: false,
+                            bayer_pattern: BayerPattern::BG,
+                            supported_bins: vec![1, 2, 3, 4],
+                            supported_video_format: vec![ImageType::Raw8, ImageType::Raw16],
+                            pixel_size: 0.2,
+                            mechanical_shutter: false,
+                            st4_port: true,
+                            is_cooler_cam: false,
+                            is_usb3_host: true,
+                            is_usb3_camera: true,
+                            elec_per_adu: 0.21,
+                            bit_depth: 10,
+                            is_trigger_cam: false,
+                        },
+                        controls: vec![ControlCaps {
+                            name: "IDK".to_string(),
+                            description: "I don't know".to_string(),
+                            max_value: 1000,
+                            min_value: 20,
+                            default_value: 490,
+                            is_auto_supported: false,
+                            is_writable: true,
+                            control_type: camera::ControlType::Exposure,
+                        }],
                     },
-                    controls: vec![],
-                }];
+                    Camera {
+                        id: 0,
+                        info: CameraInfo {
+                            name: "ASI183MC".to_string(),
+                            camera_id: 0,
+                            max_height: 100,
+                            max_width: 100,
+                            is_color_cam: true,
+                            bayer_pattern: BayerPattern::BG,
+                            supported_bins: vec![1, 2, 3, 4],
+                            supported_video_format: vec![ImageType::Raw8, ImageType::Raw16],
+                            pixel_size: 0.2,
+                            mechanical_shutter: false,
+                            st4_port: true,
+                            is_cooler_cam: false,
+                            is_usb3_host: true,
+                            is_usb3_camera: true,
+                            elec_per_adu: 0.21,
+                            bit_depth: 10,
+                            is_trigger_cam: false,
+                        },
+                        controls: vec![ControlCaps {
+                            name: "IDK".to_string(),
+                            description: "I don't know".to_string(),
+                            max_value: 1000,
+                            min_value: 20,
+                            default_value: 490,
+                            is_auto_supported: false,
+                            is_writable: true,
+                            control_type: camera::ControlType::Exposure,
+                        }],
+                    },
+                ];
                 response = Responses::ConnectedCameras(ConnectedCamerasPacket(cams));
             }
-            Requests::GetControlValue(_) => {}
-            Requests::SetControlValue(_) => {}
+            _ => {}
         }
 
         stream.write(&[0xA5]).await.unwrap();

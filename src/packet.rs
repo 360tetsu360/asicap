@@ -12,6 +12,7 @@ pub enum Requests {
     GetConnectedCameras,                    // 0x0
     GetControlValue(GetControlValuePacket), // 0x1
     SetControlValue(SetControlValuePacket), // 0x2
+    OpenCamera(OpenCameraPacket),           // 0x3
 }
 
 impl Requests {
@@ -28,8 +29,9 @@ impl Requests {
 pub enum Responses {
     ConnectedCameras(ConnectedCamerasPacket), // 0x0
     ControlValue(ControlValuePacket),         // 0x1
-    ASIError(ASIErrorCode),                   // 0x2
-    None,                                     // 0x3
+    OpenCameraStatus(OpenCameraStatusPacket), // 0x2
+    ASIError(ASIErrorCode),                   // 0x3
+    None,                                     // 0x4
 }
 
 impl Responses {
@@ -37,6 +39,7 @@ impl Responses {
         match self {
             Responses::ConnectedCameras(packet) => packet.write(tcp).await,
             Responses::ControlValue(_) => todo!(),
+            Responses::OpenCameraStatus(_) => todo!(),
             Responses::ASIError(_) => todo!(),
             Responses::None => todo!(),
         }
@@ -95,4 +98,13 @@ pub enum ASIErrorCode {
     ExposureInProgress,
     GeneralError,
     InvalidMode,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct OpenCameraPacket(pub u32);
+
+#[derive(Debug, Clone, Copy)]
+pub enum OpenCameraStatusPacket {
+    Success,
+    Failed,
 }
