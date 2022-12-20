@@ -4,13 +4,14 @@ use std::{collections::HashMap, error::Error};
 
 use async_std::net::TcpStream;
 
-use crate::{asi::asi_api::*, bytes::AsyncWriteExtend};
+use crate::{asi::asi_api::*, bytes::AsyncWriteExtend, packet::OpenCameraStatusPacket};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
     pub id: u32,
     pub info: CameraInfo,
     pub controls: Vec<ControlCaps>,
+    pub connected: bool,
 }
 
 impl Camera {
@@ -24,7 +25,12 @@ impl Camera {
             controls.push(get_control_caps(id as i32, i).await?.into())
         }
 
-        Ok(Self { id, info, controls })
+        Ok(Self {
+            id,
+            info,
+            controls,
+            connected: false,
+        })
     }
 
     async fn close(&mut self) -> Result<(), ASIError> {
@@ -38,7 +44,7 @@ impl Camera {
         for control in &self.controls {
             control.write(tcp).await?;
         }
-        Ok(())
+        tcp.write_bool(self.connected).await
     }
 }
 
@@ -358,5 +364,18 @@ impl CameraManager {
     pub async fn connected_cams(&mut self) -> Result<Vec<Camera>, Box<dyn Error>> {
         self.update().await?;
         Ok(self.cams.iter().map(|x| x.1.clone()).collect())
+    }
+
+    pub fn monopoly_camera(&mut self, id: u32) -> OpenCameraStatusPacket {
+        for (cam_id, cam) in self.cams.iter_mut() {
+            if *cam_id == id {
+                if !cam.connected {
+                    return OpenCameraStatusPacket::Success;
+                } else {
+                    return OpenCameraStatusPacket::CameraInUse;
+                }
+            }
+        }
+        OpenCameraStatusPacket::NoCameraFound
     }
 }

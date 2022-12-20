@@ -12,7 +12,7 @@ pub enum Requests {
     GetConnectedCameras,                    // 0x0
     GetControlValue(GetControlValuePacket), // 0x1
     SetControlValue(SetControlValuePacket), // 0x2
-    OpenCamera(OpenCameraPacket),           // 0x3
+    OpenCamera(u32),                        // 0x3
 }
 
 impl Requests {
@@ -20,6 +20,7 @@ impl Requests {
         let id = tcp.read_u8().await?;
         match id {
             0x0 => Ok(Self::GetConnectedCameras),
+            0x3 => Ok(Self::OpenCamera(tcp.read_u32().await?)),
             _ => todo!(),
         }
     }
@@ -37,9 +38,15 @@ pub enum Responses {
 impl Responses {
     pub async fn encode(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
         match self {
-            Responses::ConnectedCameras(packet) => packet.write(tcp).await,
+            Responses::ConnectedCameras(packet) => {
+                tcp.write_u8(0x0).await?;
+                packet.write(tcp).await
+            },
             Responses::ControlValue(_) => todo!(),
-            Responses::OpenCameraStatus(_) => todo!(),
+            Responses::OpenCameraStatus(status) => {
+                tcp.write_u8(0x2).await?;
+                status.write(tcp).await
+            },
             Responses::ASIError(_) => todo!(),
             Responses::None => todo!(),
         }
@@ -51,7 +58,6 @@ pub struct ConnectedCamerasPacket(pub Vec<Camera>);
 
 impl ConnectedCamerasPacket {
     pub async fn write(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
-        tcp.write_u8(0x0).await?;
         tcp.write_u16(self.0.len() as u16).await?;
         for camera in &self.0 {
             camera.write(tcp).await?;
@@ -101,10 +107,18 @@ pub enum ASIErrorCode {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct OpenCameraPacket(pub u32);
-
-#[derive(Debug, Clone, Copy)]
 pub enum OpenCameraStatusPacket {
     Success,
-    Failed,
+    NoCameraFound,
+    CameraInUse,
+}
+
+impl OpenCameraStatusPacket {
+    pub async fn write(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
+        match self {
+            OpenCameraStatusPacket::Success => tcp.write_u8(0x0).await,
+            OpenCameraStatusPacket::NoCameraFound => tcp.write_u8(0x1).await,
+            OpenCameraStatusPacket::CameraInUse => tcp.write_u8(0x2).await,
+        }
+    }
 }
