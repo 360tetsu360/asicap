@@ -1,4 +1,3 @@
-#![feature(cstr_from_bytes_until_nul)]
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
@@ -157,7 +156,7 @@ async fn handle_new_connection(
                                 is_writable: true,
                                 control_type: camera::ControlType::Exposure,
                             }],
-                            connected : false
+                            connected: false,
                         },
                         Camera {
                             id: 0,
@@ -190,19 +189,19 @@ async fn handle_new_connection(
                                 is_writable: true,
                                 control_type: camera::ControlType::Exposure,
                             }],
-                            connected : true
+                            connected: true,
                         },
                     ]
-                }else {
+                } else {
                     vec![]
                 };
                 response = Responses::ConnectedCameras(ConnectedCamerasPacket(cams));
                 try_v += 1;
-            },
+            }
             Requests::OpenCamera(id) => {
                 let stat = cam_manager.lock().await.monopoly_camera(id);
                 response = Responses::OpenCameraStatus(stat);
-            },
+            }
             _ => {}
         }
 

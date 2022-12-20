@@ -41,12 +41,12 @@ impl Responses {
             Responses::ConnectedCameras(packet) => {
                 tcp.write_u8(0x0).await?;
                 packet.write(tcp).await
-            },
+            }
             Responses::ControlValue(_) => todo!(),
             Responses::OpenCameraStatus(status) => {
                 tcp.write_u8(0x2).await?;
                 status.write(tcp).await
-            },
+            }
             Responses::ASIError(_) => todo!(),
             Responses::None => todo!(),
         }
