@@ -2,7 +2,7 @@
 
 use async_std::task::spawn_blocking;
 
-use super::asicamera2::*;
+use super::{asicamera2::*, bytes_to_chars, chars_to_string};
 use std::{error::Error, ffi::CStr, fmt::Display};
 
 #[repr(u32)]
@@ -286,7 +286,7 @@ pub struct ASICameraInfo {
 impl ASICameraInfo {
     pub fn from_raw(raw: ASI_CAMERA_INFO) -> Result<Self, Box<dyn Error>> {
         let mut ret = Self {
-            name: CStr::from_bytes_until_nul(&raw.Name)?.to_str()?.to_owned(),
+            name: chars_to_string(&raw.Name)?,
             camera_id: raw.CameraID,
             max_height: raw.MaxHeight,
             max_width: raw.MaxWidth,
@@ -323,8 +323,8 @@ impl ASICameraInfo {
     }
 
     pub fn to_raw(&self) -> ASI_CAMERA_INFO {
-        let mut name = [0u8; 64];
-        name[..self.name.len()].copy_from_slice(self.name.as_bytes());
+        let mut name = [0 as ::std::os::raw::c_char; 64];
+        name[..self.name.len()].copy_from_slice(bytes_to_chars(self.name.as_bytes()));
 
         let mut supported_bins = [0; 16];
         supported_bins.copy_from_slice(&self.supported_bins);
@@ -355,7 +355,7 @@ impl ASICameraInfo {
             ElecPerADU: self.elec_per_adu,
             BitDepth: self.bit_depth,
             IsTriggerCam: ASIBool::from_bool(self.is_trigger_cam) as ASI_BOOL,
-            Unused: [0u8; 16usize], //pad
+            Unused: [0 as ::std::os::raw::c_char; 16usize], //pad
         }
     }
 }
@@ -456,10 +456,8 @@ pub struct ASIControlCaps {
 impl ASIControlCaps {
     pub fn from_raw(raw: ASI_CONTROL_CAPS) -> Result<Self, Box<dyn Error>> {
         Ok(Self {
-            name: CStr::from_bytes_until_nul(&raw.Name)?.to_str()?.to_owned(),
-            description: CStr::from_bytes_until_nul(&raw.Description)?
-                .to_str()?
-                .to_owned(),
+            name: chars_to_string(&raw.Name)?,
+            description: chars_to_string(&raw.Description)?,
             max_value: raw.MaxValue,
             min_value: raw.MinValue,
             default_value: raw.DefaultValue,
@@ -470,10 +468,11 @@ impl ASIControlCaps {
     }
 
     pub fn to_raw(&self) -> ASI_CONTROL_CAPS {
-        let mut name = [0u8; 64];
-        name[..self.name.len()].copy_from_slice(self.name.as_bytes());
-        let mut description = [0u8; 128];
-        description[..self.description.len()].copy_from_slice(self.description.as_bytes());
+        let mut name = [0 as ::std::os::raw::c_char; 64];
+        name[..self.name.len()].copy_from_slice(bytes_to_chars(self.name.as_bytes()));
+        let mut description = [0 as ::std::os::raw::c_char; 128];
+        description[..self.description.len()]
+            .copy_from_slice(bytes_to_chars(self.description.as_bytes()));
         ASI_CONTROL_CAPS {
             Name: name,
             Description: description,
@@ -483,7 +482,7 @@ impl ASIControlCaps {
             IsAutoSupported: ASIBool::from_bool(self.is_auto_supported) as ASI_BOOL,
             IsWritable: ASIBool::from_bool(self.is_writable) as ASI_BOOL,
             ControlType: self.control_type as ASI_CONTROL_TYPE,
-            Unused: [0u8; 32usize], //pad
+            Unused: [0 as ::std::os::raw::c_char; 32usize], //pad
         }
     }
 }
@@ -750,7 +749,9 @@ pub async fn enable_dark_subtract(id: i32, path: &str) -> Result<(), ASIError> {
     let mut path_buf = vec![0u8; path.len() + 1];
     path_buf[..path.len()].copy_from_slice(path.as_bytes());
     spawn_blocking(move || unsafe {
-        ASIError::from_raw(ASIEnableDarkSubtract(id, path_buf.as_mut_ptr()) as u32)
+        ASIError::from_raw(
+            ASIEnableDarkSubtract(id, std::mem::transmute(path_buf.as_mut_ptr())) as u32,
+        )
     })
     .await
 }
