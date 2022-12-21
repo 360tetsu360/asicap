@@ -288,8 +288,8 @@ impl ASICameraInfo {
         let mut ret = Self {
             name: chars_to_string(&raw.Name)?,
             camera_id: raw.CameraID,
-            max_height: raw.MaxHeight,
-            max_width: raw.MaxWidth,
+            max_height: raw.MaxHeight as i32,
+            max_width: raw.MaxWidth as i32,
             is_color_cam: ASIBool::from_raw(raw.IsColorCam).to_bool(),
             bayer_pattern: ASIBayerPattern::from_raw(raw.BayerPattern),
             supported_bins: Vec::with_capacity(16),
@@ -340,8 +340,8 @@ impl ASICameraInfo {
         ASI_CAMERA_INFO {
             Name: name,
             CameraID: self.camera_id,
-            MaxHeight: self.max_height,
-            MaxWidth: self.max_width,
+            MaxHeight: self.max_height as ::std::os::raw::c_long,
+            MaxWidth: self.max_width as ::std::os::raw::c_long,
             IsColorCam: ASIBool::from_bool(self.is_color_cam) as ASI_BOOL,
             BayerPattern: self.bayer_pattern as ASI_BAYER_PATTERN,
             SupportedBins: supported_bins,
@@ -458,9 +458,9 @@ impl ASIControlCaps {
         Ok(Self {
             name: chars_to_string(&raw.Name)?,
             description: chars_to_string(&raw.Description)?,
-            max_value: raw.MaxValue,
-            min_value: raw.MinValue,
-            default_value: raw.DefaultValue,
+            max_value: raw.MaxValue as i32,
+            min_value: raw.MinValue as i32,
+            default_value: raw.DefaultValue as i32,
             is_auto_supported: ASIBool::from_raw(raw.IsAutoSupported).to_bool(),
             is_writable: ASIBool::from_raw(raw.IsWritable).to_bool(),
             control_type: ASIControlType::from_raw(raw.ControlType),
@@ -476,9 +476,9 @@ impl ASIControlCaps {
         ASI_CONTROL_CAPS {
             Name: name,
             Description: description,
-            MaxValue: self.max_value,
-            MinValue: self.min_value,
-            DefaultValue: self.default_value,
+            MaxValue: self.max_value as ::std::os::raw::c_long,
+            MinValue: self.min_value as ::std::os::raw::c_long,
+            DefaultValue: self.default_value as ::std::os::raw::c_long,
             IsAutoSupported: ASIBool::from_bool(self.is_auto_supported) as ASI_BOOL,
             IsWritable: ASIBool::from_bool(self.is_writable) as ASI_BOOL,
             ControlType: self.control_type as ASI_CONTROL_TYPE,
@@ -660,7 +660,7 @@ pub async fn get_control_value(
         )
     })
     .await?;
-    Ok((pl_value, ASIBool::from_raw(pb_auto as u32).to_bool()))
+    Ok((pl_value as i32, ASIBool::from_raw(pb_auto as u32).to_bool()))
 }
 
 /// Set the ROI area before capture.
@@ -786,7 +786,7 @@ pub async fn get_video_data(
 ) -> Result<Vec<u8>, ASIError> {
     spawn_blocking(move || unsafe {
         ASIError::from_raw(
-            ASIGetVideoData(id, buffer.as_mut_ptr(), buffer.len() as i32, waitms) as u32,
+            ASIGetVideoData(id, buffer.as_mut_ptr(), buffer.len() as ::std::os::raw::c_long, waitms) as u32,
         )?;
         Ok(buffer)
     })
@@ -842,7 +842,7 @@ pub async fn get_exp_status(id: i32) -> Result<ASIExposureStatus, ASIError> {
 pub async fn get_data_after_exp(id: i32, mut buffer: Vec<u8>) -> Result<Vec<u8>, ASIError> {
     spawn_blocking(move || unsafe {
         ASIError::from_raw(
-            ASIGetDataAfterExp(id, buffer.as_mut_ptr(), buffer.len() as i32) as u32,
+            ASIGetDataAfterExp(id, buffer.as_mut_ptr(), buffer.len() as ::std::os::raw::c_long) as u32,
         )?;
         Ok(buffer)
     })
@@ -974,8 +974,8 @@ pub async fn set_trigger_output_io_conf(
             id,
             pin as i32,
             ASIBool::from_bool(pin_high) as i32,
-            delay,
-            duration,
+            delay as ::std::os::raw::c_long,
+            duration as ::std::os::raw::c_long,
         ) as u32)
     })
     .await
@@ -1001,7 +1001,7 @@ pub async fn get_trigger_output_io_conf(
     .await?;
     Ok((
         ASIBool::from_raw(pin_high_raw as u32).to_bool(),
-        delay,
-        duration,
+        delay as ::std::os::raw::c_int,
+        duration as ::std::os::raw::c_int,
     ))
 }
