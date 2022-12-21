@@ -15,20 +15,28 @@ fn get_output_path() -> PathBuf {
 
 fn main() {
     let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
 
     if cfg!(target_os = "linux") {
         println!(
-            "cargo:rustc-link-search=native={}/lib/{}",
-            project_dir, target_arch
+            "cargo:rustc-link-search=native={}/lib/{}/{}",
+            project_dir, target_os, target_arch
         );
         println!("cargo:rustc-link-lib=static=usb-1.0");
         println!("cargo:rustc-link-lib=dylib=udev");
         println!("cargo:rustc-link-lib=dylib=stdc++");
-    } else if cfg!(target_os = "windows") {
+    } else if cfg!(target_os = "macos") {
         println!(
             "cargo:rustc-link-search=native={}/lib/{}",
-            project_dir, target_arch
+            project_dir, target_os
+        );
+        println!("cargo:rustc-link-lib=static=usb-1.0");
+        println!("cargo:rustc-link-lib=dylib=c++");
+    } else if cfg!(target_os = "windows") {
+        println!(
+            "cargo:rustc-link-search=native={}/lib/{}/{}",
+            project_dir, target_os, target_arch
         );
         let target_dir = get_output_path();
         let src = Path::join(
