@@ -1,0 +1,5 @@
+[env]
+# If you are using a raspberry pi, please uncomment.
+# Specify the Raspberry Pi model
+# raspi1 (armv6), raspi2 (armv7), raspi3 (armv7), raspi4 (armv7)
+# RASPBERRYPI_VER = "raspi4"
