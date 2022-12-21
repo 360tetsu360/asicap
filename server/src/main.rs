@@ -32,10 +32,11 @@ async fn app() -> std::io::Result<()> {
     let camera_manager = Arc::new(Mutex::new(CameraManager::new().await.unwrap()));
     dbg!(&camera_manager);
 
-    let udp_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), 4510);
-    let tcp_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 4514);
-
+    let udp_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 4510);
     let udp_socket = UdpSocket::bind(udp_address).await?;
+    udp_socket.set_broadcast(true)?;
+
+    let tcp_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 4514);
     let tcp_listener = TcpListener::bind(tcp_address).await?;
 
     loop {

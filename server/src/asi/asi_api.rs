@@ -785,9 +785,12 @@ pub async fn get_video_data(
     waitms: i32,
 ) -> Result<Vec<u8>, ASIError> {
     spawn_blocking(move || unsafe {
-        ASIError::from_raw(
-            ASIGetVideoData(id, buffer.as_mut_ptr(), buffer.len() as ::std::os::raw::c_long, waitms) as u32,
-        )?;
+        ASIError::from_raw(ASIGetVideoData(
+            id,
+            buffer.as_mut_ptr(),
+            buffer.len() as ::std::os::raw::c_long,
+            waitms,
+        ) as u32)?;
         Ok(buffer)
     })
     .await
@@ -841,9 +844,11 @@ pub async fn get_exp_status(id: i32) -> Result<ASIExposureStatus, ASIError> {
 /// otherwise the this API will crash
 pub async fn get_data_after_exp(id: i32, mut buffer: Vec<u8>) -> Result<Vec<u8>, ASIError> {
     spawn_blocking(move || unsafe {
-        ASIError::from_raw(
-            ASIGetDataAfterExp(id, buffer.as_mut_ptr(), buffer.len() as ::std::os::raw::c_long) as u32,
-        )?;
+        ASIError::from_raw(ASIGetDataAfterExp(
+            id,
+            buffer.as_mut_ptr(),
+            buffer.len() as ::std::os::raw::c_long,
+        ) as u32)?;
         Ok(buffer)
     })
     .await
