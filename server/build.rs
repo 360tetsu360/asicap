@@ -5,9 +5,10 @@ use std::{
 
 fn get_output_path() -> PathBuf {
     //<root or manifest path>/target/<profile>/
-    let manifest_dir_string = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let project_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let workspace_dir = Path::new(&project_dir).parent().unwrap();
     let build_type = env::var("PROFILE").unwrap();
-    Path::new(&manifest_dir_string)
+    workspace_dir
         .join("target")
         .join(build_type)
 }
