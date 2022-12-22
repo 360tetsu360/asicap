@@ -7,10 +7,10 @@ use crate::{
 
 #[derive(Debug)]
 pub enum Requests {
-    GetConnectedCameras,                    // 0x0
-    GetControlValue(GetControlValuePacket), // 0x1
-    SetControlValue(SetControlValuePacket), // 0x2
-    OpenCamera(u32),                        // 0x3
+    GetConnectedCameras,                      // 0x0
+    GetControlValues(GetControlValuesPacket), // 0x1
+    SetControlValue(SetControlValuePacket),   // 0x2
+    OpenCamera(u32),                          // 0x3
 }
 
 impl Requests {
@@ -22,7 +22,10 @@ impl Requests {
             Requests::GetConnectedCameras => {
                 tcp.write_u8(0x0).await?;
             }
-            Requests::GetControlValue(_) => todo!(),
+            Requests::GetControlValues(packet) => {
+                tcp.write_u8(0x1).await?;
+                packet.write(tcp).await?
+            }
             Requests::SetControlValue(_) => todo!(),
             Requests::OpenCamera(id) => {
                 tcp.write_u8(0x3).await?;
@@ -36,7 +39,7 @@ impl Requests {
 #[derive(Debug)]
 pub enum Responses {
     ConnectedCameras(ConnectedCamerasPacket), // 0x0
-    ControlValue(ControlValuePacket),         // 0x1
+    ControlValues(ControlValuesPacket),       // 0x1
     OpenCameraStatus(OpenCameraStatusPacket), // 0x2
     ASIError(ASIErrorCode),                   // 0x3
     None,                                     // 0x4
@@ -48,7 +51,7 @@ impl Responses {
             0x0 => Ok(Self::ConnectedCameras(
                 ConnectedCamerasPacket::read(tcp).await?,
             )),
-            0x1 => todo!(),
+            0x1 => Ok(Self::ControlValues(ControlValuesPacket::read(tcp).await?)),
             0x2 => Ok(Self::OpenCameraStatus(
                 OpenCameraStatusPacket::read(tcp).await?,
             )),
@@ -73,16 +76,48 @@ impl ConnectedCamerasPacket {
 }
 
 #[derive(Debug, Clone)]
-pub struct GetControlValuePacket {
+pub struct GetControlValuesPacket {
     id: u32,
-    control_type: ControlType,
+    control_types: Vec<ControlType>,
+}
+
+impl GetControlValuesPacket {
+    pub async fn write(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
+        tcp.write_u32(self.id).await?;
+        tcp.write_u16(self.control_types.len() as u16).await?;
+        for controls in &self.control_types {
+            controls.write(tcp).await?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct ControlValuePacket {
+pub struct ControlValuesPacket {
     id: u32,
-    control_type: ControlType,
-    value: Option<i32>,
+    values: Vec<(ControlType, Option<i32>)>,
+}
+
+impl ControlValuesPacket {
+    pub async fn read(tcp: &mut TcpStream) -> std::io::Result<Self> {
+        Ok(Self {
+            id: tcp.read_u32().await?,
+            values: {
+                let len = tcp.read_u16().await?;
+                let mut values = vec![];
+                for _ in 0..len {
+                    let control = ControlType::read(tcp).await?;
+                    let value = if tcp.read_bool().await? {
+                        Some(tcp.read_i32().await?)
+                    } else {
+                        None
+                    };
+                    values.push((control, value))
+                }
+                values
+            },
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -115,7 +150,7 @@ pub enum ASIErrorCode {
 
 #[derive(Debug, Clone, Copy)]
 pub enum OpenCameraStatusPacket {
-    Success,
+    Success(u32),
     NoCameraFound,
     CameraInUse,
 }
@@ -123,7 +158,7 @@ pub enum OpenCameraStatusPacket {
 impl OpenCameraStatusPacket {
     pub async fn read(tcp: &mut TcpStream) -> std::io::Result<Self> {
         match tcp.read_u8().await? {
-            0x0 => Ok(Self::Success),
+            0x0 => Ok(Self::Success(tcp.read_u32().await?)),
             0x1 => Ok(Self::NoCameraFound),
             0x2 => Ok(Self::CameraInUse),
             _ => panic!(),

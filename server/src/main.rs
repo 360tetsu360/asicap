@@ -14,7 +14,7 @@ use futures::{select, FutureExt};
 
 use crate::{
     camera::{BayerPattern, Camera, CameraInfo, CameraManager, ControlCaps, ImageType},
-    packet::{ConnectedCamerasPacket, Requests, Responses},
+    packet::{ConnectedCamerasPacket, OpenCameraStatusPacket, Requests, Responses},
 };
 
 mod asi;
@@ -163,7 +163,7 @@ async fn handle_new_connection(
                             id: 0,
                             info: CameraInfo {
                                 name: "ASI183MC".to_string(),
-                                camera_id: 0,
+                                camera_id: 1,
                                 max_height: 100,
                                 max_width: 100,
                                 is_color_cam: true,
@@ -201,7 +201,8 @@ async fn handle_new_connection(
             }
             Requests::OpenCamera(id) => {
                 let stat = cam_manager.lock().await.monopoly_camera(id);
-                response = Responses::OpenCameraStatus(stat);
+                response = Responses::OpenCameraStatus(OpenCameraStatusPacket::Success(0));
+                // for test
             }
             _ => {}
         }

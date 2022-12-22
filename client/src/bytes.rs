@@ -73,6 +73,7 @@ impl AsyncReadExtend for TcpStream {
 pub trait AsyncWriteExtend {
     async fn write_bool(&mut self, v: bool) -> std::io::Result<()>;
     async fn write_u8(&mut self, v: u8) -> std::io::Result<()>;
+    async fn write_u16(&mut self, v: u16) -> std::io::Result<()>;
     async fn write_i32(&mut self, v: i32) -> std::io::Result<()>;
     async fn write_u32(&mut self, v: u32) -> std::io::Result<()>;
     async fn write_f32(&mut self, v: f32) -> std::io::Result<()>;
@@ -87,6 +88,10 @@ impl AsyncWriteExtend for TcpStream {
 
     async fn write_u8(&mut self, v: u8) -> std::io::Result<()> {
         self.write_all(&[v]).await
+    }
+
+    async fn write_u16(&mut self, v: u16) -> std::io::Result<()> {
+        self.write_all(&v.to_be_bytes()).await
     }
 
     async fn write_i32(&mut self, v: i32) -> std::io::Result<()> {

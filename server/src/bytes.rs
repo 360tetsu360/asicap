@@ -8,6 +8,7 @@ use async_trait::async_trait;
 pub trait AsyncReadExtend {
     async fn read_bool(&mut self) -> std::io::Result<bool>;
     async fn read_u8(&mut self) -> std::io::Result<u8>;
+    async fn read_u16(&mut self) -> std::io::Result<u16>;
     async fn read_i32(&mut self) -> std::io::Result<i32>;
     async fn read_u32(&mut self) -> std::io::Result<u32>;
     async fn read_f32(&mut self) -> std::io::Result<f32>;
@@ -26,6 +27,12 @@ impl AsyncReadExtend for TcpStream {
         let mut b = [0u8; 1];
         self.read_exact(&mut b).await?;
         Ok(b[0])
+    }
+
+    async fn read_u16(&mut self) -> std::io::Result<u16> {
+        let mut b = [0u8; 2];
+        self.read_exact(&mut b).await?;
+        Ok(u16::from_be_bytes(b))
     }
 
     async fn read_i32(&mut self) -> std::io::Result<i32> {

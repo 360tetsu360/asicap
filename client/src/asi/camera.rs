@@ -1,6 +1,6 @@
 use async_std::net::TcpStream;
 
-use crate::bytes::AsyncReadExtend;
+use crate::bytes::{AsyncReadExtend, AsyncWriteExtend};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
@@ -201,6 +201,33 @@ impl ControlType {
             20 => Ok(Self::PatternAdjust),
             21 => Ok(Self::AntiDewHeater),
             _ => panic!(),
+        }
+    }
+
+    pub async fn write(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
+        match self {
+            ControlType::Gain => tcp.write_u8(0).await,
+            ControlType::Exposure => tcp.write_u8(1).await,
+            ControlType::Gamma => tcp.write_u8(2).await,
+            ControlType::WbR => tcp.write_u8(3).await,
+            ControlType::WbB => tcp.write_u8(4).await,
+            ControlType::Offset => tcp.write_u8(5).await,
+            ControlType::BandwidthOverload => tcp.write_u8(6).await,
+            ControlType::OverClock => tcp.write_u8(7).await,
+            ControlType::Temperature => tcp.write_u8(8).await,
+            ControlType::Flip => tcp.write_u8(9).await,
+            ControlType::AutoMaxGain => tcp.write_u8(10).await,
+            ControlType::AutoMaxExp => tcp.write_u8(11).await,
+            ControlType::AutoTargetBrightness => tcp.write_u8(12).await,
+            ControlType::HardwareBin => tcp.write_u8(13).await,
+            ControlType::HighSpeedMode => tcp.write_u8(14).await,
+            ControlType::CoolerPowerPerc => tcp.write_u8(15).await,
+            ControlType::TargetTemp => tcp.write_u8(16).await,
+            ControlType::CoolerOn => tcp.write_u8(17).await,
+            ControlType::MonoBin => tcp.write_u8(18).await,
+            ControlType::FanOn => tcp.write_u8(19).await,
+            ControlType::PatternAdjust => tcp.write_u8(20).await,
+            ControlType::AntiDewHeater => tcp.write_u8(21).await,
         }
     }
 }

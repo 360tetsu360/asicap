@@ -15,6 +15,7 @@ mod design;
 mod nets;
 mod packets;
 mod tab;
+mod viewcam;
 
 pub const MAGIC: &[u8] = b"A51C4P";
 

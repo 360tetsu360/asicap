@@ -4,7 +4,11 @@ use std::{collections::HashMap, error::Error};
 
 use async_std::net::TcpStream;
 
-use crate::{asi::asi_api::*, bytes::AsyncWriteExtend, packet::OpenCameraStatusPacket};
+use crate::{
+    asi::asi_api::*,
+    bytes::{AsyncReadExtend, AsyncWriteExtend},
+    packet::OpenCameraStatusPacket,
+};
 
 #[derive(Debug, Clone)]
 pub struct Camera {
@@ -214,6 +218,34 @@ pub enum ControlType {
 }
 
 impl ControlType {
+    pub async fn read(tcp: &mut TcpStream) -> std::io::Result<Self> {
+        match tcp.read_u8().await? {
+            0 => Ok(Self::Gain),
+            1 => Ok(Self::Exposure),
+            2 => Ok(Self::Gamma),
+            3 => Ok(Self::WbR),
+            4 => Ok(Self::WbB),
+            5 => Ok(Self::Offset),
+            6 => Ok(Self::BandwidthOverload),
+            7 => Ok(Self::OverClock),
+            8 => Ok(Self::Temperature),
+            9 => Ok(Self::Flip),
+            10 => Ok(Self::AutoMaxGain),
+            11 => Ok(Self::AutoMaxExp),
+            12 => Ok(Self::AutoTargetBrightness),
+            13 => Ok(Self::HardwareBin),
+            14 => Ok(Self::HighSpeedMode),
+            15 => Ok(Self::CoolerPowerPerc),
+            16 => Ok(Self::TargetTemp),
+            17 => Ok(Self::CoolerOn),
+            18 => Ok(Self::MonoBin),
+            19 => Ok(Self::FanOn),
+            20 => Ok(Self::PatternAdjust),
+            21 => Ok(Self::AntiDewHeater),
+            _ => panic!(),
+        }
+    }
+
     pub async fn write(&self, tcp: &mut TcpStream) -> std::io::Result<()> {
         match self {
             ControlType::Gain => tcp.write_u8(0).await,
@@ -370,7 +402,7 @@ impl CameraManager {
         for (cam_id, cam) in self.cams.iter_mut() {
             if *cam_id == id {
                 if !cam.connected {
-                    return OpenCameraStatusPacket::Success;
+                    return OpenCameraStatusPacket::Success(id);
                 } else {
                     return OpenCameraStatusPacket::CameraInUse;
                 }

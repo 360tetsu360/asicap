@@ -5,9 +5,10 @@ use futures::{channel::oneshot::Canceled, FutureExt};
 
 use crate::{
     asi::camera::Camera,
-    nets::NetworkManager,
     design::dialog::show_dialog,
-    packets::{ConnectedCamerasPacket, Requests, Responses, OpenCameraStatusPacket},
+    nets::NetworkManager,
+    packets::{ConnectedCamerasPacket, OpenCameraStatusPacket, Requests, Responses},
+    viewcam::ViewCameraApp,
 };
 
 type ServerResponse = Pin<Box<dyn futures::Future<Output = Result<Responses, Canceled>>>>;
@@ -36,7 +37,7 @@ pub enum OpenCameraFailed {
 impl From<OpenCameraStatusPacket> for OpenCameraFailed {
     fn from(packet: OpenCameraStatusPacket) -> Self {
         match packet {
-            OpenCameraStatusPacket::Success => panic!(),
+            OpenCameraStatusPacket::Success(_) => panic!(),
             OpenCameraStatusPacket::NoCameraFound => OpenCameraFailed::NoCameraFound,
             OpenCameraStatusPacket::CameraInUse => OpenCameraFailed::CameraInUse,
         }
@@ -45,7 +46,7 @@ impl From<OpenCameraStatusPacket> for OpenCameraFailed {
 
 pub enum TabState {
     SelectCamera(Option<Vec<(Camera, bool)>>, Option<OpenCameraFailed>),
-    ViewCamera,
+    ViewCamera(ViewCameraApp),
 }
 
 pub struct Tab {
@@ -81,16 +82,8 @@ impl Tab {
         for response in received_responses {
             match response {
                 Responses::ConnectedCameras(packet) => self.handle_connected_cam_res(packet),
-                Responses::ControlValue(_) => todo!(),
-                Responses::OpenCameraStatus(status) => {
-                    if let OpenCameraStatusPacket::Success = status {
-
-                    }else {
-                        if let TabState::SelectCamera(_, failed) = &mut self.state {
-                            *failed = Some(status.into());
-                        }
-                    }
-                }
+                Responses::ControlValues(_) => todo!(),
+                Responses::OpenCameraStatus(status) => self.handle_open_cam_res(status),
                 Responses::ASIError(_) => todo!(),
                 Responses::None => todo!(),
             }
@@ -197,7 +190,7 @@ impl Tab {
                     }
                 }
             }
-            TabState::ViewCamera => todo!(),
+            TabState::ViewCamera(app) => app.show(ctx, ui, netmanager),
         }
 
         if let Some(camera_id) = connect_cam_id {
@@ -207,13 +200,38 @@ impl Tab {
 
     fn handle_connected_cam_res(&mut self, mut packet: ConnectedCamerasPacket) {
         match &mut self.state {
-            TabState::SelectCamera(cams,_) => {
+            TabState::SelectCamera(cams, _) => {
                 *cams = Some(vec![]);
                 while let Some(cam) = packet.0.pop() {
                     cams.as_mut().unwrap().push((cam, false));
                 }
             }
-            TabState::ViewCamera => panic!(),
+            TabState::ViewCamera(_) => panic!(),
+        }
+    }
+
+    fn handle_open_cam_res(&mut self, status: OpenCameraStatusPacket) {
+        if let OpenCameraStatusPacket::Success(id) = status {
+            let cam: Camera = self.get_camera_and_drop_cams(id);
+            self.state = TabState::ViewCamera(ViewCameraApp::new(cam));
+        } else {
+            if let TabState::SelectCamera(_, failed) = &mut self.state {
+                *failed = Some(status.into());
+            }
+        }
+    }
+
+    fn get_camera_and_drop_cams(&mut self, id: u32) -> Camera {
+        if let TabState::SelectCamera(cams_wrap, _) = &mut self.state {
+            let mut cams = cams_wrap.take().unwrap();
+            while let Some((cam, _)) = cams.pop() {
+                if cam.id == id {
+                    return cam;
+                }
+            }
+            panic!();
+        } else {
+            panic!();
         }
     }
 
