@@ -57,7 +57,7 @@ fn main() {
         let target_dir = get_output_path();
         let src = Path::join(
             &env::current_dir().unwrap(),
-            format!("lib\\{}\\ASICamera2.dll", target_arch),
+            format!("lib\\windows\\{}\\ASICamera2.dll", target_arch),
         );
         let dest = Path::join(Path::new(&target_dir), Path::new("ASICamera2.dll"));
         fs::copy(src, dest).unwrap();
