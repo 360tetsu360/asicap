@@ -6,7 +6,8 @@ use futures::{channel::oneshot::Canceled, FutureExt};
 use crate::{
     asi::camera::Camera,
     nets::NetworkManager,
-    packets::{ConnectedCamerasPacket, Requests, Responses},
+    design::dialog::show_dialog,
+    packets::{ConnectedCamerasPacket, Requests, Responses, OpenCameraStatusPacket},
 };
 
 type ServerResponse = Pin<Box<dyn futures::Future<Output = Result<Responses, Canceled>>>>;
@@ -27,8 +28,23 @@ impl TabManager {
     }
 }
 
+pub enum OpenCameraFailed {
+    NoCameraFound,
+    CameraInUse,
+}
+
+impl From<OpenCameraStatusPacket> for OpenCameraFailed {
+    fn from(packet: OpenCameraStatusPacket) -> Self {
+        match packet {
+            OpenCameraStatusPacket::Success => panic!(),
+            OpenCameraStatusPacket::NoCameraFound => OpenCameraFailed::NoCameraFound,
+            OpenCameraStatusPacket::CameraInUse => OpenCameraFailed::CameraInUse,
+        }
+    }
+}
+
 pub enum TabState {
-    SelectCamera(Option<Vec<(Camera, bool)>>),
+    SelectCamera(Option<Vec<(Camera, bool)>>, Option<OpenCameraFailed>),
     ViewCamera,
 }
 
@@ -44,7 +60,7 @@ impl Tab {
         Self {
             id,
             title: "New Tab".to_string(),
-            state: TabState::SelectCamera(None),
+            state: TabState::SelectCamera(None, None),
             res_future_queue: vec![netmanager.request_api(Requests::GetConnectedCameras)],
         }
     }
@@ -67,7 +83,13 @@ impl Tab {
                 Responses::ConnectedCameras(packet) => self.handle_connected_cam_res(packet),
                 Responses::ControlValue(_) => todo!(),
                 Responses::OpenCameraStatus(status) => {
-                    dbg!(status);
+                    if let OpenCameraStatusPacket::Success = status {
+
+                    }else {
+                        if let TabState::SelectCamera(_, failed) = &mut self.state {
+                            *failed = Some(status.into());
+                        }
+                    }
                 }
                 Responses::ASIError(_) => todo!(),
                 Responses::None => todo!(),
@@ -85,7 +107,7 @@ impl Tab {
 
         let mut connect_cam_id = None;
         match &mut self.state {
-            TabState::SelectCamera(None) => {
+            TabState::SelectCamera(None, None) => {
                 ui.vertical_centered(|ui| {
                     ui.add(egui::Spinner::new());
                     ui.label(
@@ -94,7 +116,8 @@ impl Tab {
                     )
                 });
             }
-            TabState::SelectCamera(Some(cams)) => {
+            TabState::SelectCamera(None, Some(_)) => panic!(),
+            TabState::SelectCamera(Some(cams), failed) => {
                 if cams.is_empty() {
                     ui.vertical_centered(|ui| {
                         ui.label(
@@ -162,6 +185,17 @@ impl Tab {
                             });
                     }
                 }
+
+                if let Some(fail) = failed {
+                    let err_msg = match fail {
+                        OpenCameraFailed::NoCameraFound => "That camera was not available.",
+                        OpenCameraFailed::CameraInUse => "That camera is in use.",
+                    };
+
+                    if show_dialog(ctx, "Error", false, None, err_msg) {
+                        *failed = None;
+                    }
+                }
             }
             TabState::ViewCamera => todo!(),
         }
@@ -173,7 +207,7 @@ impl Tab {
 
     fn handle_connected_cam_res(&mut self, mut packet: ConnectedCamerasPacket) {
         match &mut self.state {
-            TabState::SelectCamera(cams) => {
+            TabState::SelectCamera(cams,_) => {
                 *cams = Some(vec![]);
                 while let Some(cam) = packet.0.pop() {
                     cams.as_mut().unwrap().push((cam, false));

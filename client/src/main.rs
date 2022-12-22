@@ -111,13 +111,7 @@ impl MainApp {
         });
 
         if self.finging_page.retry_msgbox_open {
-            let clicked = show_dialog(
-                ctx,
-                "Error",
-                false,
-                &mut self.finging_page.retry_msgbox_open,
-                "No server found",
-            );
+            let clicked = show_dialog(ctx, "Error", false, None, "No server found");
 
             if clicked {
                 self.net_manager.retry_find_server();

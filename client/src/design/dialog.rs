@@ -4,7 +4,7 @@ pub fn show_dialog(
     ctx: &egui::Context,
     title: &str,
     close_button: bool,
-    close: &mut bool,
+    close: Option<&mut bool>,
     text: &str,
 ) -> bool {
     let anchor = egui::Align2::CENTER_CENTER;
@@ -18,7 +18,7 @@ pub fn show_dialog(
         .anchor(anchor, [0., 0.]);
 
     if close_button {
-        window = window.open(close);
+        window = window.open(close.unwrap());
     }
 
     let mut clicked = false;
