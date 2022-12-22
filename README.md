@@ -4,9 +4,7 @@ Software to control ZWO ASI cameras remotely
 # Build
 - ### **Linux & Mac**
     - Install [**libusb-1.0**](https://github.com/libusb/libusb/releases) for ASI Camera SDK
-
-- ### **Raspberry Pi**
-    replace `RASPBERRYPI_VER` in .cargo/config.toml with your Raspberry Pi model
+    - If you are using Raspberry Pi for server, replace `RASPBERRYPI_VER` in .cargo/config.toml with your Raspberry Pi model
 
 # Requires
 - ### **Linux & Mac**
