@@ -196,11 +196,13 @@ async fn handle_new_connection(
                 } else {
                     vec![]
                 };
+                // let cams = cam_manager.lock().await.connected_cams().await.unwrap();
                 response = Responses::ConnectedCameras(ConnectedCamerasPacket(cams));
                 try_v += 1;
             }
             Requests::OpenCamera(id) => {
                 let stat = cam_manager.lock().await.monopoly_camera(id);
+                //response = Responses::OpenCameraStatus(stat);
                 response = Responses::OpenCameraStatus(OpenCameraStatusPacket::Success(0));
                 // for test
             }
